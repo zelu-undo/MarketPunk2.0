@@ -1009,7 +1009,7 @@ function BuildingsTab({ state, onBuild, onUpgrade, onDemolish, money }: { state:
         {buildingTypes.map(type => {
           const building = BUILDINGS[type];
           const canAfford = money >= building.baseCost;
-          const count = state.buildings?.filter((b: Building) => b.type === type).length || 0;
+          const count = state.buildings?.filter((b: { type: BuildingType }) => b.type === type).length || 0;
           
           return (
             <div key={type} className="bg-white/5 border border-white/5 rounded-2xl p-4">
@@ -1042,7 +1042,7 @@ function BuildingsTab({ state, onBuild, onUpgrade, onDemolish, money }: { state:
             No buildings yet. Build some to grow your population!
           </div>
         ) : (
-          state.buildings.map((building: Building) => (
+          state.buildings.map((building: { id: string; type: BuildingType; level: number }) => (
             <div key={building.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <Building className="w-6 h-6 text-amber-500" />
