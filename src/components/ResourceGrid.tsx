@@ -11,6 +11,7 @@ interface ResourceGridProps {
   storageLevels: Record<ResourceType, number>;
   favorites?: ResourceType[];
   onToggleFavorite?: (type: ResourceType) => void;
+  onUpgradeStorage?: (type: ResourceType) => void;
   title?: string;
 }
 
@@ -155,11 +156,22 @@ export function ResourceGrid({ resources, storageLimits, storageLevels, favorite
                       <div key={type} className={`p-2 rounded-lg border ${amount > 0 ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-950 border-zinc-900'}`}>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-medium truncate" style={{ color: info.color }}>{info.label}</span>
-                          {onToggleFavorite && (
-                            <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500">
-                              <Star className={`w-3 h-3 ${allFavorites.includes(type) ? 'fill-amber-500 text-amber-500' : ''}`} />
-                            </button>
-                          )}
+                          <div className="flex items-center gap-1">
+                            {onUpgradeStorage && (
+                              <button 
+                                onClick={() => onUpgradeStorage(type as ResourceType)} 
+                                className="text-zinc-600 hover:text-blue-500 text-[10px]"
+                                title="Upgrade storage"
+                              >
+                                ⬆
+                              </button>
+                            )}
+                            {onToggleFavorite && (
+                              <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500">
+                                <Star className={`w-3 h-3 ${allFavorites.includes(type) ? 'fill-amber-500 text-amber-500' : ''}`} />
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div className="text-lg font-bold">{amount.toLocaleString()}</div>
                         <div className="text-xs text-zinc-500">/ {limit.toLocaleString()}</div>
@@ -180,11 +192,22 @@ export function ResourceGrid({ resources, storageLimits, storageLevels, favorite
               <div key={type} className={`p-2 rounded-lg border ${amount > 0 ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-950 border-zinc-900'}`}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium truncate" style={{ color: info.color }}>{info.label}</span>
-                  {onToggleFavorite && (
-                    <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500">
-                      <Star className={`w-3 h-3 ${allFavorites.includes(type) ? 'fill-amber-500 text-amber-500' : ''}`} />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {onUpgradeStorage && (
+                      <button 
+                        onClick={() => onUpgradeStorage(type as ResourceType)} 
+                        className="text-zinc-600 hover:text-blue-500 text-[10px]"
+                        title="Upgrade storage"
+                      >
+                        ⬆
+                      </button>
+                    )}
+                    {onToggleFavorite && (
+                      <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500">
+                        <Star className={`w-3 h-3 ${allFavorites.includes(type) ? 'fill-amber-500 text-amber-500' : ''}`} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="text-lg font-bold">{amount.toLocaleString()}</div>
                 <div className="text-xs text-zinc-500">/ {limit.toLocaleString()}</div>

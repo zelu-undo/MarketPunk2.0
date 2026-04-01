@@ -123,6 +123,10 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isMarketOpen, setIsMarketOpen] = useState(false);
+  const [favorites, setFavorites] = useState<ResourceType[]>([]);
+  const toggleFavorite = (type: ResourceType) => {
+    setFavorites(prev => prev.includes(type) ? prev.filter(f => f !== type) : [...prev, type]);
+  };
   const [companyModal, setCompanyModal] = useState<{ isOpen: boolean, unit: ProductionUnit | null }>({ isOpen: false, unit: null });
   const [companyName, setCompanyName] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -324,7 +328,7 @@ export default function App() {
           >
             {activeTab === 'dashboard' && (
               <>
-                <Dashboard state={state} onUpgradeStorage={upgradeStorage} onUpgradeMaxCompanies={upgradeMaxCompanies} onUpgradeMaxAutomations={upgradeMaxAutomations} />
+                <Dashboard state={state} onUpgradeStorage={upgradeStorage} onUpgradeMaxCompanies={upgradeMaxCompanies} onUpgradeMaxAutomations={upgradeMaxAutomations} favorites={favorites} onToggleFavorite={toggleFavorite} />
                 <div className="mt-8 bg-white/5 border border-white/5 rounded-2xl p-6">
                   <h2 className="text-xl font-bold mb-4">Performance</h2>
                   <div className="h-64">
@@ -508,13 +512,16 @@ export default function App() {
   );
 }
 
-function Dashboard({ state, onUpgradeStorage, onUpgradeMaxCompanies, onUpgradeMaxAutomations }: { state: any, onUpgradeStorage: any, onUpgradeMaxCompanies: any, onUpgradeMaxAutomations: any }) {
+function Dashboard({ state, onUpgradeStorage, onUpgradeMaxCompanies, onUpgradeMaxAutomations, favorites, onToggleFavorite }: { state: any, onUpgradeStorage: any, onUpgradeMaxCompanies: any, onUpgradeMaxAutomations: any, favorites?: ResourceType[], onToggleFavorite?: (type: ResourceType) => void }) {
   return (
     <div className="space-y-8">
       <ResourceGrid
         resources={state.resources}
         storageLimits={state.storageLimits}
         storageLevels={state.storageLevels}
+        favorites={favorites}
+        onToggleFavorite={onToggleFavorite}
+        onUpgradeStorage={onUpgradeStorage}
         title="Resources"
       />
     </div>
