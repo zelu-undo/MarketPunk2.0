@@ -1,0 +1,5 @@
+{
+  "name": "MarketPunk",
+  "description": "A minimalist automated economy game (PWA) where you manage a company, produce resources, and automate your way to market dominance.",
+  "requestFramePermissions": []
+}
