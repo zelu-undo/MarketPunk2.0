@@ -12,11 +12,7 @@
       "dest": "/server.ts"
     },
     {
-      "src": "/assets/(.*)",
-      "dest": "/server.ts"
-    },
-    {
-      "src": "/(.*)",
+      "src": "/((?!api/).*)",
       "dest": "/server.ts"
     }
   ]
