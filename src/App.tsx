@@ -278,7 +278,7 @@ export default function App() {
                 "text-lg font-mono font-bold",
                 state.populationHappiness < 50 ? "text-red-500" : state.populationHappiness < 70 ? "text-orange-400" : "text-emerald-400"
               )}>
-                {Math.floor(state.population || 10)}
+                {Math.round(state.population)}
               </span>
             </div>
             <div className="h-8 w-px bg-white/10 hidden sm:block" />

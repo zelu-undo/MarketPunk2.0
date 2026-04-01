@@ -998,14 +998,23 @@ export function useGameLoop() {
       
       // 6. Population growth - infinite based on building capacity
       const maxPopulation = baseCapacity + totalPopulationCapacity;
+      // Population changes - use floor to prevent small floating point oscillations
+      const currentPop = Math.floor(nextState.population);
       if (needsMet && nextState.populationHappiness > 70 && nextState.population < maxPopulation) {
-        // Growth rate slows as approaching capacity
-        const spaceRemaining = maxPopulation - nextState.population;
-        const growthFactor = Math.min(1, spaceRemaining / 50); // Slower growth as fills up
-        nextState.population = Math.min(maxPopulation, nextState.population + BASE_POPULATION_GROWTH * growthFactor);
+        // Only grow if there's enough sustained resources (at least 10 ticks worth)
+        const minSustainedResources = Math.max(10, Math.ceil(currentPop * FOOD_CONSUMPTION_RATE * 10));
+        const hasSustainedFood = (nextState.resources['food_ration'] || 0) >= minSustainedResources;
+        
+        if (hasSustainedFood) {
+          // Growth rate slows as approaching capacity
+          const spaceRemaining = maxPopulation - nextState.population;
+          const growthFactor = Math.min(1, spaceRemaining / 50);
+          nextState.population = Math.min(maxPopulation, nextState.population + BASE_POPULATION_GROWTH * growthFactor);
+        }
       } else if (!hasFood) {
-        // Population decays without food
-        nextState.population = Math.max(0, nextState.population - POPULATION_DECAY);
+        // Population decays - faster decay when resources are low
+        const decayAmount = Math.max(POPULATION_DECAY, Math.min(2, currentPop * 0.1));
+        nextState.population = Math.max(0, nextState.population - decayAmount);
       }
       
       // 6. Calculate efficiency bonus/penalty (affects all production)
