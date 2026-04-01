@@ -36,7 +36,7 @@ import {
   Truck
 } from 'lucide-react';
 import { useGameLoop } from './useGameLoop';
-import { ResourceType, ProductionUnit, MarketItem, AutomationRule, Action, Operator, AutomationCondition, Order, TradeRecord } from './types';
+import { ResourceType, ProductionUnit, MarketItem, AutomationRule, Action, Operator, AutomationCondition, Order, TradeRecord, TruckType, BuildingType } from './types';
 import { INITIAL_PRODUCTION_UNITS, RESOURCES, STORAGE_UPGRADE_COST, TECHNOLOGIES, BUILDINGS } from './constants';
 import { ResourceGrid } from './components/ResourceGrid';
 import { MarketWithSearch } from './components/MarketWithSearch';
@@ -802,6 +802,261 @@ function MarketOrders({ orderBook, resources, onCancelOrder, onCreateOrder }: { 
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function Automation({ rules, maxAutomations, money, onAdd, onEdit, onToggle, onDelete, onUpgradeMaxAutomations }: { rules: AutomationRule[], maxAutomations: number, money: number, onAdd: any, onEdit: any, onToggle: any, onDelete: any, onUpgradeMaxAutomations: any }) {
+  const [showForm, setShowForm] = useState(false);
+  const [newRule, setNewRule] = useState({ conditions: [] as AutomationCondition[], action: { type: 'produce' as Action, resource: 'logger' as ResourceType, amount: 1 } });
+  
+  const upgradeCost = 500 * maxAutomations;
+  
+  return (
+    <div className="space-y-6">
+      {/* Automation Slots & Upgrade */}
+      <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+            <Settings className="w-6 h-6 text-purple-500" />
+          </div>
+          <div>
+            <h3 className="font-bold text-lg">Automation Slots</h3>
+            <p className="text-xs text-zinc-500">{rules.filter(r => r.isEnabled).length} / {maxAutomations} active</p>
+          </div>
+        </div>
+        <button 
+          onClick={onUpgradeMaxAutomations}
+          disabled={money < upgradeCost}
+          className="px-4 py-2 bg-purple-500/20 text-purple-400 rounded-xl text-sm font-bold hover:bg-purple-500/30 disabled:opacity-30"
+        >
+          Upgrade ({upgradeCost})
+        </button>
+      </div>
+      
+      {/* Add Rule Button */}
+      <button
+        onClick={() => setShowForm(!showForm)}
+        className="w-full py-3 bg-white/5 border border-white/10 rounded-xl text-sm font-bold hover:bg-white/10"
+      >
+        + Add Automation Rule
+      </button>
+      
+      {/* Rule Form */}
+      {showForm && (
+        <div className="bg-white/5 border border-white/5 rounded-2xl p-6 space-y-4">
+          <h4 className="font-bold">New Automation Rule</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <select 
+              className="bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2 text-sm"
+              onChange={(e) => setNewRule({ ...newRule, action: { ...newRule.action, type: e.target.value as Action } })}
+            >
+              <option value="produce">Produce</option>
+              <option value="buy">Buy</option>
+              <option value="sell">Sell</option>
+            </select>
+            <select 
+              className="bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2 text-sm"
+              onChange={(e) => setNewRule({ ...newRule, action: { ...newRule.action, resource: e.target.value as ResourceType } })}
+            >
+              {INITIAL_PRODUCTION_UNITS.map(u => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={() => { onAdd({ ...newRule, isEnabled: true, isPaused: false }); setShowForm(false); }}
+            className="w-full py-3 bg-emerald-500 text-black rounded-xl font-bold"
+          >
+            Create Rule
+          </button>
+        </div>
+      )}
+      
+      {/* Rules List */}
+      <div className="space-y-3">
+        {rules.length === 0 ? (
+          <div className="text-center py-8 text-zinc-500 bg-white/5 rounded-2xl border border-white/5">
+            No automation rules yet. Create one to automate your production!
+          </div>
+        ) : (
+          rules.map(rule => (
+            <div key={rule.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <button onClick={() => onToggle(rule.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center ${rule.isEnabled ? 'bg-emerald-500/20 text-emerald-500' : 'bg-zinc-800 text-zinc-500'}`}>
+                  <Settings className="w-5 h-5" />
+                </button>
+                <div>
+                  <div className="font-bold text-sm">{rule.action.type.toUpperCase()} {rule.action.resource}</div>
+                  <div className="text-xs text-zinc-500">{rule.conditions.length} conditions</div>
+                </div>
+              </div>
+              <button onClick={() => onDelete(rule.id)} className="p-2 hover:bg-red-500/10 rounded-xl text-zinc-500 hover:text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Logistics({ units, totalTrucks, availableTrucks, money, onAssign, onRemove, onBuy, unlockedTechs }: { units: ProductionUnit[], totalTrucks: number, availableTrucks: number, money: number, onAssign: any, onRemove: any, onBuy: any, unlockedTechs: string[] }) {
+  const truckTypes = [
+    { id: 'basic', name: 'Basic Truck', capacity: 10, speed: 1, cost: 500 },
+    { id: 'fast', name: 'Fast Truck', capacity: 5, speed: 2, cost: 1500 },
+    { id: 'heavy', name: 'Heavy Truck', capacity: 25, speed: 0.5, cost: 2500 },
+  ];
+  
+  return (
+    <div className="space-y-6">
+      {/* Truck Status */}
+      <div className="bg-white/5 border border-white/5 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-lg">Fleet Status</h3>
+          <div className="text-2xl font-mono font-bold text-emerald-400">{availableTrucks} / {totalTrucks}</div>
+        </div>
+        <div className="flex gap-2">
+          {truckTypes.map(truck => (
+            <button
+              key={truck.id}
+              onClick={() => onBuy(truck.id as TruckType)}
+              disabled={money < truck.cost}
+              className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-xs font-bold hover:bg-white/10 disabled:opacity-30"
+            >
+              Buy {truck.name} ({truck.cost})
+            </button>
+          ))}
+        </div>
+      </div>
+      
+      {/* Unit Trucks */}
+      <div className="space-y-3">
+        {units.map(unit => (
+          <div key={unit.id} className="bg-white/5 border border-white/5 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-bold">{unit.name}</h4>
+              <div className="flex items-center gap-2">
+                <button onClick={() => onRemove(unit.id)} disabled={unit.trucks <= 0} className="w-8 h-8 bg-red-500/10 rounded-lg text-red-500 hover:bg-red-500/20 disabled:opacity-30">-</button>
+                <span className="w-8 text-center font-mono">{unit.trucks}</span>
+                <button onClick={() => onAssign(unit.id)} disabled={availableTrucks <= 0} className="w-8 h-8 bg-emerald-500/10 rounded-lg text-emerald-500 hover:bg-emerald-500/20 disabled:opacity-30">+</button>
+              </div>
+            </div>
+            <div className="text-xs text-zinc-500">
+              Input Buffer: {Object.entries(unit.inputBuffer).filter(([_, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ') || 'Empty'}
+            </div>
+            <div className="text-xs text-zinc-500">
+              Output Buffer: {unit.outputBuffer[unit.output.type] || 0} / {unit.output.amount * 20}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Research({ dataPoints, unlockedTechs, onUnlock }: { dataPoints: number, unlockedTechs: string[], onUnlock: any }) {
+  return (
+    <div className="space-y-6">
+      <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl p-6">
+        <div className="flex items-center gap-4">
+          <FlaskConical className="w-8 h-8 text-purple-500" />
+          <div>
+            <h3 className="font-bold text-lg">Data Points</h3>
+            <p className="text-2xl font-mono font-bold text-purple-400">{dataPoints}</p>
+          </div>
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {TECHNOLOGIES.map(tech => {
+          const isUnlocked = unlockedTechs.includes(tech.id);
+          const canAfford = dataPoints >= tech.cost;
+          
+          return (
+            <div key={tech.id} className={`bg-white/5 border rounded-2xl p-4 ${isUnlocked ? 'border-emerald-500/30' : 'border-white/5'}`}>
+              <div className="flex items-start justify-between mb-2">
+                <h4 className="font-bold">{tech.name}</h4>
+                {isUnlocked && <span className="text-xs bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded">Unlocked</span>}
+              </div>
+              <p className="text-xs text-zinc-500 mb-4">{tech.description}</p>
+              {!isUnlocked && (
+                <button
+                  onClick={() => onUnlock(tech.id, tech.cost)}
+                  disabled={!canAfford}
+                  className="w-full py-2 bg-purple-500 text-black rounded-xl text-xs font-bold hover:bg-purple-400 disabled:opacity-30"
+                >
+                  Research ({tech.cost} DP)
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BuildingsTab({ state, onBuild, onUpgrade, onDemolish, money }: { state: any, onBuild: any, onUpgrade: any, onDemolish: any, money: number }) {
+  const buildingTypes: BuildingType[] = ['house', 'apartment', 'luxury_housing', 'hospital', 'warehouse', 'research_lab'];
+  
+  return (
+    <div className="space-y-6">
+      {/* Building Types */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        {buildingTypes.map(type => {
+          const building = BUILDINGS[type];
+          const canAfford = money >= building.baseCost;
+          const count = state.buildings?.filter((b: Building) => b.type === type).length || 0;
+          
+          return (
+            <div key={type} className="bg-white/5 border border-white/5 rounded-2xl p-4">
+              <div className="flex items-center gap-3 mb-2">
+                <Building className="w-5 h-5 text-amber-500" />
+                <h4 className="font-bold text-sm">{building.name}</h4>
+              </div>
+              <p className="text-xs text-zinc-500 mb-2">{building.description}</p>
+              <div className="flex items-center justify-between text-xs text-zinc-400 mb-3">
+                <span>Count: {count}</span>
+                <span>Cap: +{building.populationCapacity}</span>
+              </div>
+              <button
+                onClick={() => onBuild(type)}
+                disabled={!canAfford}
+                className="w-full py-2 bg-amber-500/20 text-amber-400 rounded-xl text-xs font-bold hover:bg-amber-500/30 disabled:opacity-30"
+              >
+                Build ({building.baseCost})
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      
+      {/* Built Buildings */}
+      <div className="space-y-3">
+        <h3 className="font-bold text-lg">Your Buildings</h3>
+        {(!state.buildings || state.buildings.length === 0) ? (
+          <div className="text-center py-8 text-zinc-500 bg-white/5 rounded-2xl border border-white/5">
+            No buildings yet. Build some to grow your population!
+          </div>
+        ) : (
+          state.buildings.map((building: Building) => (
+            <div key={building.id} className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <Building className="w-6 h-6 text-amber-500" />
+                <div>
+                  <h4 className="font-bold">{BUILDINGS[building.type]?.name}</h4>
+                  <p className="text-xs text-zinc-500">Level {building.level}</p>
+                </div>
+              </div>
+              <button onClick={() => onDemolish(building.id)} className="p-2 hover:bg-red-500/10 rounded-xl text-zinc-500 hover:text-red-500">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
