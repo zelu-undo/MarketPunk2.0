@@ -38,7 +38,7 @@ import { useGameLoop } from './useGameLoop';
 import { ResourceType, ProductionUnit, MarketItem, AutomationRule, Action, Operator, AutomationCondition, Order, TradeRecord } from './types';
 import { INITIAL_PRODUCTION_UNITS, RESOURCES, STORAGE_UPGRADE_COST, TECHNOLOGIES, BUILDINGS } from './constants';
 import { ResourceGrid } from './components/ResourceGrid';
-import { MarketResourceSelector } from './components/MarketResourceSelector';
+import { MarketResourceSelector, SearchableSelect } from './components/MarketResourceSelector';
 
 function Shop({ money, unlockedTechs, onOpenModal }: { money: number, unlockedTechs: string[], onOpenModal: (unit: ProductionUnit) => void }) {
   const availableUnits = INITIAL_PRODUCTION_UNITS.filter(unit => {
@@ -124,6 +124,7 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [isMarketOpen, setIsMarketOpen] = useState(false);
+  const [orderResource, setOrderResource] = useState<ResourceType | ''>('');
   const [companyModal, setCompanyModal] = useState<{ isOpen: boolean, unit: ProductionUnit | null }>({ isOpen: false, unit: null });
   const [companyName, setCompanyName] = useState('');
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -822,14 +823,11 @@ function MarketOrders({ orderBook, resources, onCancelOrder, onCreateOrder }: { 
               <option value="buy">Buy</option>
               <option value="sell">Sell</option>
             </select>
-            <select 
-              id="orderResource"
-              className="bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-2 text-sm outline-none focus:border-emerald-500/50"
-            >
-              {Object.entries(RESOURCES).map(([type, info]) => (
-                type !== 'money' && type !== 'research' && <option key={type} value={type}>{info.label}</option>
-              ))}
-            </select>
+            <SearchableSelect 
+              value={orderResource || ''}
+              onChange={(v) => setOrderResource(v)}
+              placeholder="Select resource..."
+            />
           </div>
           <input 
             id="orderAmount"
@@ -846,7 +844,7 @@ function MarketOrders({ orderBook, resources, onCancelOrder, onCreateOrder }: { 
           <button 
             onClick={() => {
               const type = (document.getElementById('orderType') as HTMLSelectElement).value as 'buy' | 'sell';
-              const resource = (document.getElementById('orderResource') as HTMLSelectElement).value as ResourceType;
+              const resource = orderResource;
               const amountInput = (document.getElementById('orderAmount') as HTMLInputElement).value;
               const priceInput = (document.getElementById('orderPrice') as HTMLInputElement).value;
               
