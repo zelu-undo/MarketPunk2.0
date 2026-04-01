@@ -170,6 +170,7 @@ export interface GameState {
   population: number;
   populationHappiness: number;
   populationGrowthRate: number;
+  populationEfficiency: number; // 1.0 = normal, 1.1 = +10%, 0.7 = -30%
   // Buildings
   buildings: Building[];
   // Maintenance

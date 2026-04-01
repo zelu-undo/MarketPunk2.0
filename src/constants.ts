@@ -283,13 +283,34 @@ export const HEAT_WARNING_THRESHOLD = 600; // Warning level
 
 // ============ POPULATION CONSTANTS ============
 export const INITIAL_POPULATION = 10;
-export const BASE_POPULATION_GROWTH = 1; // Per tick
-export const FOOD_CONSUMPTION_RATE = 0.1; // Per population per tick
-export const COMFORT_CONSUMPTION_RATE = 0.01; // Per population per tick
-export const MEDICAL_CONSUMPTION_RATE = 0.001; // Per population per tick
-export const HAPPINESS_DECAY = 0.5; // Per tick without needs met
-export const HAPPINESS_BONUS_CAP = 100;
-export const POPULATION_WORK_CAPACITY = 0.5; // Each 2 pop = 1 worker
+export const MAX_POPULATION = 1000;
+export const BASE_POPULATION_GROWTH = 0.1; // Per tick when happy
+export const POPULATION_DECAY = 0.05; // Per tick when unhappy (no food)
+
+// Consumption rates per population per tick
+export const FOOD_CONSUMPTION_RATE = 0.1; // Food needed per person
+export const COMFORT_CONSUMPTION_RATE = 0.01; // Comfort items needed
+export const MEDICAL_CONSUMPTION_RATE = 0.001; // Medical supplies needed
+export const ENERGY_CONSUMPTION_RATE = 0.5; // Energy per person (for housing)
+
+// Happiness
+export const HAPPINESS_DECAY = 2; // Per tick without needs
+export const HAPPINESS_RECOVERY = 1; // Per tick with needs met
+export const HAPPINESS_WARNING_THRESHOLD = 50;
+export const HAPPINESS_CRITICAL_THRESHOLD = 30;
+
+// Efficiency bonuses
+export const POPULATION_EFFICIENCY_BONUS = 0.1; // +10% production when needs met
+export const POPULATION_EFFICIENCY_PENALTY = 0.3; // -30% production when needs not met
+export const HAPPINESS_TAX_BONUS = 0.05; // +5% tax per happiness point above 70
+
+// Worker requirements
+export const WORKERS_PER_FACTORY = 5; // Workers needed per factory
+export const BASE_WORKER_PRODUCTION = 0.2; // Base production bonus per worker
+
+// Tax/Income
+export const BASE_TAX_RATE = 0.1; // Base 10% of population generates as tax
+export const TAX_INTERVAL = 1000; // Every 1 second (tick)
 
 // ============ BUILDINGS ============
 export const BUILDINGS: Record<BuildingType, {

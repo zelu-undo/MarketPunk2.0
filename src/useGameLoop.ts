@@ -12,18 +12,27 @@ import {
   INITIAL_MAX_COMPANIES,
   INITIAL_MAX_AUTOMATIONS,
   TRUCK_TYPES,
-  // New constants
+  // Heat constants
   MAX_HEAT,
   BASE_HEAT_DISSIPATION,
   WATER_COOLING_BONUS,
   HEAT_EXCHANGER_BONUS,
   OVERHEAT_THRESHOLD,
   CRITICAL_HEAT_THRESHOLD,
+  // Population constants
   INITIAL_POPULATION,
+  MAX_POPULATION,
   FOOD_CONSUMPTION_RATE,
   COMFORT_CONSUMPTION_RATE,
   MEDICAL_CONSUMPTION_RATE,
+  ENERGY_CONSUMPTION_RATE,
   HAPPINESS_DECAY,
+  HAPPINESS_RECOVERY,
+  POPULATION_EFFICIENCY_BONUS,
+  POPULATION_EFFICIENCY_PENALTY,
+  HAPPINESS_TAX_BONUS,
+  WORKERS_PER_FACTORY,
+  BASE_TAX_RATE,
   BUILDINGS,
 } from './constants';
 
@@ -163,6 +172,7 @@ function getInitialState(user: User | null): GameState {
     population: 10,
     populationHappiness: 100,
     populationGrowthRate: 1,
+    populationEfficiency: 1.0,
     // Buildings
     buildings: [],
     // Maintenance
@@ -224,6 +234,7 @@ export function useGameLoop() {
             population: typeof parsed.population === 'number' ? parsed.population : INITIAL_POPULATION,
             populationHappiness: typeof parsed.populationHappiness === 'number' ? parsed.populationHappiness : 100,
             populationGrowthRate: typeof parsed.populationGrowthRate === 'number' ? parsed.populationGrowthRate : 1,
+            populationEfficiency: typeof parsed.populationEfficiency === 'number' ? parsed.populationEfficiency : 1.0,
             buildings: parsed.buildings || [],
             maintenanceItems: parsed.maintenanceItems || {},
           };
@@ -466,7 +477,7 @@ export function useGameLoop() {
         return prev;
       }
 
-      // Calculate efficiency based on energy
+      // Calculate efficiency based on energy + population
       const energyInput = unit.input.find(i => i.type === 'energy');
       let currentEfficiency = 1.0;
       let energyConsumed = 0;
@@ -479,6 +490,10 @@ export function useGameLoop() {
         else if (ratio >= 0.5) currentEfficiency = 0.6 + (ratio - 0.5) * 1.0;
         else currentEfficiency = 0.2 + ratio * 0.8;
       }
+      
+      // Apply population efficiency bonus/penalty
+      const popEfficiency = prev.populationEfficiency || 1.0;
+      currentEfficiency *= popEfficiency;
 
       const newUnits = prev.productionUnits.map(u => {
         if (u.id === unitId) {
@@ -917,29 +932,59 @@ export function useGameLoop() {
       nextState.heatLevel = Math.max(0, Math.min(nextState.maxHeat, nextState.heatLevel - heatDecay + heatGenerated));
 
       // ===== POPULATION SYSTEM =====
-      // Population needs food to survive and be happy
-      // If happiness > 70 and food is available, population grows
-      const foodNeeded = Math.ceil(nextState.population / 10); // 1 food per 10 population per tick
-      const currentFood = nextState.resources['wood'] || 0; // Using wood as basic food for now
+      // 1. Calculate total needs based on population
+      const foodNeeded = Math.ceil(nextState.population * FOOD_CONSUMPTION_RATE);
+      const comfortNeeded = Math.ceil(nextState.population * COMFORT_CONSUMPTION_RATE);
+      const medicalNeeded = Math.ceil(nextState.population * MEDICAL_CONSUMPTION_RATE);
+      const energyNeeded = Math.ceil(nextState.population * ENERGY_CONSUMPTION_RATE);
       
-      if (currentFood >= foodNeeded) {
-        // Consume food
-        nextState.resources['wood'] = Math.max(0, currentFood - foodNeeded);
-        
-        // Growth if happy
-        if (nextState.populationHappiness > 70) {
-          nextState.population = Math.min(1000, nextState.population + 0.1); // Max 1000
-        }
+      // 2. Check if needs are met
+      const hasFood = (nextState.resources['food_ration'] || 0) >= foodNeeded;
+      const hasComfort = (nextState.resources['comfort_item'] || 0) >= comfortNeeded;
+      const hasMedical = (nextState.resources['medical_supply'] || 0) >= medicalNeeded;
+      const hasEnergy = (nextState.resources['energy'] || 0) >= energyNeeded;
+      const needsMet = hasFood && hasComfort && hasMedical && hasEnergy;
+      
+      // 3. Consume resources (SINK - keeps market alive!)
+      if (hasFood) {
+        nextState.resources['food_ration'] = (nextState.resources['food_ration'] || 0) - foodNeeded;
+      }
+      if (hasComfort) {
+        nextState.resources['comfort_item'] = (nextState.resources['comfort_item'] || 0) - comfortNeeded;
+      }
+      if (hasMedical) {
+        nextState.resources['medical_supply'] = (nextState.resources['medical_supply'] || 0) - medicalNeeded;
+      }
+      
+      // 4. Update happiness
+      if (needsMet) {
+        nextState.populationHappiness = Math.min(100, nextState.populationHappiness + HAPPINESS_RECOVERY);
       } else {
-        // Not enough food - happiness drops
-        nextState.populationHappiness = Math.max(0, nextState.populationHappiness - 5);
-        nextState.resources['wood'] = 0;
+        nextState.populationHappiness = Math.max(0, nextState.populationHappiness - HAPPINESS_DECAY);
       }
-
-      // Passive happiness recovery if needs are met
-      if (currentFood >= foodNeeded && nextState.populationHappiness < 100) {
-        nextState.populationHappiness = Math.min(100, nextState.populationHappiness + 1);
+      
+      // 5. Population growth/decay
+      if (needsMet && nextState.populationHappiness > 70) {
+        nextState.population = Math.min(MAX_POPULATION, nextState.population + BASE_POPULATION_GROWTH);
+      } else if (!hasFood) {
+        nextState.population = Math.max(0, nextState.population - POPULATION_DECAY);
       }
+      
+      // 6. Calculate efficiency bonus/penalty (affects all production)
+      let populationEfficiency = 1.0;
+      if (needsMet && nextState.populationHappiness > 70) {
+        populationEfficiency = 1.0 + POPULATION_EFFICIENCY_BONUS; // +10% production
+      } else if (nextState.populationHappiness < HAPPINESS_CRITICAL_THRESHOLD) {
+        populationEfficiency = 1.0 - POPULATION_EFFICIENCY_PENALTY; // -30% production
+      }
+      
+      // 7. Generate tax income (credits from population)
+      const taxRate = BASE_TAX_RATE + (Math.max(0, nextState.populationHappiness - 70) * HAPPINESS_TAX_BONUS);
+      const taxIncome = Math.floor(nextState.population * taxRate);
+      nextState.money += taxIncome;
+      
+      // Store efficiency for production units to use
+      nextState.populationEfficiency = populationEfficiency;
 
       // Handle Automation (Simplified for simulation)
       nextState.automationRules.forEach(rule => {
