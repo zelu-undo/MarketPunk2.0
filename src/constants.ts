@@ -272,6 +272,108 @@ export const INITIAL_MAX_COMPANIES = 3;
 export const INITIAL_MAX_AUTOMATIONS = 1;
 export const INITIAL_MONEY = 1000;
 
+// ============ HEAT SYSTEM CONSTANTS ============
+export const MAX_HEAT = 1000;
+export const BASE_HEAT_DISSIPATION = 10; // Base heat dissipation per tick
+export const WATER_COOLING_BONUS = 25; // Additional dissipation with water
+export const HEAT_EXCHANGER_BONUS = 50; // Additional dissipation with heat exchanger
+export const OVERHEAT_THRESHOLD = 800; // At this level, production slows
+export const CRITICAL_HEAT_THRESHOLD = 950; // At this level, production stops
+export const HEAT_WARNING_THRESHOLD = 600; // Warning level
+
+// ============ POPULATION CONSTANTS ============
+export const INITIAL_POPULATION = 10;
+export const BASE_POPULATION_GROWTH = 1; // Per tick
+export const FOOD_CONSUMPTION_RATE = 0.1; // Per population per tick
+export const COMFORT_CONSUMPTION_RATE = 0.01; // Per population per tick
+export const MEDICAL_CONSUMPTION_RATE = 0.001; // Per population per tick
+export const HAPPINESS_DECAY = 0.5; // Per tick without needs met
+export const HAPPINESS_BONUS_CAP = 100;
+export const POPULATION_WORK_CAPACITY = 0.5; // Each 2 pop = 1 worker
+
+// ============ BUILDINGS ============
+export const BUILDINGS: Record<BuildingType, {
+  name: string;
+  populationCapacity: number;
+  happinessBonus: number;
+  resourceConsumption: Record<ResourceType, number>;
+  baseCost: number;
+  costMultiplier: number;
+  description: string;
+}> = {
+  house: {
+    name: 'House',
+    populationCapacity: 10,
+    happinessBonus: 5,
+    resourceConsumption: { food_ration: 1 },
+    baseCost: 500,
+    costMultiplier: 1.5,
+    description: 'Basic housing for workers. Provides 10 population capacity.',
+  },
+  apartment: {
+    name: 'Apartment Complex',
+    populationCapacity: 50,
+    happinessBonus: 15,
+    resourceConsumption: { food_ration: 3, comfort_item: 1 },
+    baseCost: 3000,
+    costMultiplier: 1.8,
+    description: 'Multi-family housing. Provides 50 population capacity.',
+  },
+  luxury_housing: {
+    name: 'Luxury Housing',
+    populationCapacity: 100,
+    happinessBonus: 30,
+    resourceConsumption: { food_ration: 5, comfort_item: 2, medical_supply: 1 },
+    baseCost: 10000,
+    costMultiplier: 2.0,
+    description: 'High-end housing for VIPs. Provides 100 population capacity.',
+  },
+  hospital: {
+    name: 'Hospital',
+    populationCapacity: 0,
+    happinessBonus: 20,
+    resourceConsumption: { medical_supply: 3, energy: 10 },
+    baseCost: 8000,
+    costMultiplier: 2.0,
+    description: 'Provides medical care. Increases happiness and reduces illness.',
+  },
+  warehouse: {
+    name: 'Warehouse',
+    populationCapacity: 0,
+    happinessBonus: 0,
+    resourceConsumption: { energy: 5 },
+    baseCost: 2000,
+    costMultiplier: 1.5,
+    description: 'Storage facility. Increases storage capacity for all resources.',
+  },
+  research_lab: {
+    name: 'Research Lab',
+    populationCapacity: 0,
+    happinessBonus: 10,
+    resourceConsumption: { energy: 20, research: 1 },
+    baseCost: 15000,
+    costMultiplier: 2.0,
+    description: 'Advanced research facility. Boosts technology research speed.',
+  },
+};
+
+// ============ LOGISTICS CONSTANTS ============
+export const BASE_TRUCK_CAPACITY = 10;
+export const BASE_TRUCK_SPEED = 1; // Units per tick
+export const BASE_ROUTE_EFFICIENCY = 80; // Percentage
+export const PRIORITY_MULTIPLIERS = {
+  low: 0.5,
+  medium: 1.0,
+  high: 1.5,
+  critical: 2.0,
+};
+
+// ============ MAINTENANCE CONSTANTS ============
+export const MAINTENANCE_INTERVAL = 86400000; // 24 hours in ms
+export const FACTORY_MAINTENANCE_RATE = 0.01; // 1% per day
+export const MOTOR_MAINTENANCE_RATE = 0.02; // 2% per day
+export const VEHICLE_MAINTENANCE_RATE = 0.005; // 0.5% per 1000km
+
 export const TICK_RATE = 1000; // 1 second
 export const MARKET_TICK_RATE = 1000; // 1 second
 export const HISTORY_LIMIT = 100;

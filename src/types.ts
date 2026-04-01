@@ -165,7 +165,49 @@ export interface GameState {
   // Heat System
   heatLevel: number;
   maxHeat: number;
+  heatDissipationRate: number; // Heat dissipated per tick
   // Population System
   population: number;
   populationHappiness: number;
+  populationGrowthRate: number;
+  // Buildings
+  buildings: Building[];
+  // Maintenance
+  maintenanceItems: Record<ResourceType, number>;
+}
+
+// Building Types
+export type BuildingType = 'house' | 'apartment' | 'luxury_housing' | 'hospital' | 'warehouse' | 'research_lab';
+
+export interface Building {
+  id: string;
+  type: BuildingType;
+  name: string;
+  level: number;
+  populationCapacity: number;
+  happinessBonus: number;
+  resourceConsumption: Record<ResourceType, number>;
+  cost: number;
+  upgradeCost: number;
+}
+
+// Route-Based Logistics
+export type RouteStatus = 'active' | 'paused' | 'completed';
+export type Priority = 'low' | 'medium' | 'high' | 'critical';
+
+export interface LogisticsRoute {
+  id: string;
+  name: string;
+  originType: 'warehouse' | 'producer';
+  originId: string;
+  destinationType: 'warehouse' | 'producer' | 'market';
+  destinationId: string;
+  resourceType: ResourceType;
+  amountPerTick: number;
+  trucksAllocated: number;
+  priority: Priority;
+  status: RouteStatus;
+  efficiency: number; // 0-100%
+  currentLoad: number;
+  distance: number; // abstract distance unit
 }
