@@ -21,6 +21,7 @@ import {
   ChevronRight,
   AlertCircle,
   ArrowUpCircle,
+  ArrowUp,
   Database,
   User as UserIcon,
   LogOut,
@@ -360,10 +361,13 @@ export default function App() {
             {activeTab === 'automation' && (
               <Automation 
                 rules={state.automationRules} 
+                maxAutomations={state.maxAutomations}
+                money={state.money}
                 onAdd={addAutomationRule} 
                 onEdit={editAutomationRule}
                 onToggle={toggleAutomationRule} 
                 onDelete={deleteAutomationRule}
+                onUpgradeMaxAutomations={upgradeMaxAutomations}
               />
             )}
             {activeTab === 'shop' && (
@@ -877,12 +881,13 @@ function Market({ market, resources, storageLimits, money }: { market: Record<Re
   );
 }
 
-function Automation({ rules, onAdd, onEdit, onToggle, onDelete }: { rules: AutomationRule[], onAdd: any, onEdit: any, onToggle: any, onDelete: any }) {
+function Automation({ rules, maxAutomations, money, onAdd, onEdit, onToggle, onDelete, onUpgradeMaxAutomations }: { rules: AutomationRule[], maxAutomations: number, money: number, onAdd: any, onEdit: any, onToggle: any, onDelete: any, onUpgradeMaxAutomations: any }) {
   const [editingRule, setEditingRule] = useState<AutomationRule | null>(null);
   const [conditions, setConditions] = useState<AutomationCondition[]>([
     { resource: 'money', operator: '>', value: 1000 }
   ]);
   const [action, setAction] = useState({ type: 'buy' as Action, resource: 'wood' as ResourceType, amount: 10 });
+  const upgradeCost = 500 * maxAutomations;
 
   useEffect(() => {
     if (editingRule) {
@@ -923,6 +928,27 @@ function Automation({ rules, onAdd, onEdit, onToggle, onDelete }: { rules: Autom
 
   return (
     <div className="space-y-8">
+      {/* Automation Limit & Upgrade */}
+      <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="p-2 bg-blue-500/20 rounded-lg">
+            <Settings className="w-5 h-5 text-blue-500" />
+          </div>
+          <div>
+            <div className="font-medium">Automation Slots</div>
+            <div className="text-sm text-zinc-400">{rules.filter(r => r.isEnabled).length} / {maxAutomations} used</div>
+          </div>
+        </div>
+        <button
+          onClick={onUpgradeMaxAutomations}
+          disabled={money < upgradeCost}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+        >
+          <ArrowUp className="w-4 h-4" />
+          +1 Slot (${upgradeCost.toLocaleString()})
+        </button>
+      </div>
+
       {/* Add Rule Form */}
       <div className="bg-white/5 border border-white/5 rounded-3xl p-8">
         <h3 className="text-xs uppercase tracking-widest text-zinc-500 font-bold mb-8 flex items-center gap-2">
