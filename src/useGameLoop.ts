@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { GameState, ResourceType, ProductionUnit, MarketItem, AutomationRule, Action, Operator, User, Order, TruckType } from './types';
+import { GameState, ResourceType, ProductionUnit, MarketItem, AutomationRule, Action, Operator, User, Order, TruckType, BuildingType } from './types';
 import { 
   INITIAL_MONEY, 
   INITIAL_PRODUCTION_UNITS, 
@@ -11,7 +11,20 @@ import {
   STORAGE_UPGRADE_COST,
   INITIAL_MAX_COMPANIES,
   INITIAL_MAX_AUTOMATIONS,
-  TRUCK_TYPES
+  TRUCK_TYPES,
+  // New constants
+  MAX_HEAT,
+  BASE_HEAT_DISSIPATION,
+  WATER_COOLING_BONUS,
+  HEAT_EXCHANGER_BONUS,
+  OVERHEAT_THRESHOLD,
+  CRITICAL_HEAT_THRESHOLD,
+  INITIAL_POPULATION,
+  FOOD_CONSUMPTION_RATE,
+  COMFORT_CONSUMPTION_RATE,
+  MEDICAL_CONSUMPTION_RATE,
+  HAPPINESS_DECAY,
+  BUILDINGS,
 } from './constants';
 
 const STORAGE_KEY_PREFIX = 'marketpunk_save_';
@@ -206,9 +219,13 @@ export function useGameLoop() {
             netFlow: {} as Record<ResourceType, number>,
             campaign: parsed.campaign || getInitialState(null).campaign,
             heatLevel: typeof parsed.heatLevel === 'number' ? parsed.heatLevel : 0,
-            maxHeat: typeof parsed.maxHeat === 'number' ? parsed.maxHeat : 1000,
-            population: typeof parsed.population === 'number' ? parsed.population : 10,
+            maxHeat: typeof parsed.maxHeat === 'number' ? parsed.maxHeat : MAX_HEAT,
+            heatDissipationRate: typeof parsed.heatDissipationRate === 'number' ? parsed.heatDissipationRate : BASE_HEAT_DISSIPATION,
+            population: typeof parsed.population === 'number' ? parsed.population : INITIAL_POPULATION,
             populationHappiness: typeof parsed.populationHappiness === 'number' ? parsed.populationHappiness : 100,
+            populationGrowthRate: typeof parsed.populationGrowthRate === 'number' ? parsed.populationGrowthRate : 1,
+            buildings: parsed.buildings || [],
+            maintenanceItems: parsed.maintenanceItems || {},
           };
         } catch (e) {
           console.error('Failed to parse save', e);
@@ -668,6 +685,90 @@ export function useGameLoop() {
       const cost = 2000; // Fixed cost for trucks
       if ((Number(prev.money) || 0) < cost) return prev;
       return { ...prev, money: (Number(prev.money) || 0) - cost, totalTrucks: (Number(prev.totalTrucks) || 1) + 1, availableTrucks: (Number(prev.availableTrucks) || 0) + 1 };
+    });
+  }, []);
+
+  // ===== BUILDING SYSTEM =====
+  const buildBuilding = useCallback((type: BuildingType) => {
+    const buildingConfig = BUILDINGS[type];
+    if (!buildingConfig) {
+      toast.error('Invalid building type');
+      return;
+    }
+
+    setState(prev => {
+      if ((Number(prev.money) || 0) < buildingConfig.baseCost) {
+        toast.error('Not enough money to build this');
+        return prev;
+      }
+
+      const newBuilding = {
+        id: `building-${Date.now()}`,
+        type,
+        name: buildingConfig.name,
+        level: 1,
+        populationCapacity: buildingConfig.populationCapacity,
+        happinessBonus: buildingConfig.happinessBonus,
+        resourceConsumption: { ...buildingConfig.resourceConsumption },
+        cost: buildingConfig.baseCost,
+        upgradeCost: buildingConfig.baseCost * buildingConfig.costMultiplier,
+      };
+
+      return {
+        ...prev,
+        money: (Number(prev.money) || 0) - buildingConfig.baseCost,
+        buildings: [...prev.buildings, newBuilding],
+      };
+    });
+  }, []);
+
+  const upgradeBuilding = useCallback((buildingId: string) => {
+    setState(prev => {
+      const building = prev.buildings.find(b => b.id === buildingId);
+      if (!building) return prev;
+
+      const buildingConfig = BUILDINGS[building.type];
+      const upgradeCost = buildingConfig.baseCost * Math.pow(buildingConfig.costMultiplier, building.level);
+
+      if ((Number(prev.money) || 0) < upgradeCost) {
+        toast.error('Not enough money to upgrade');
+        return prev;
+      }
+
+      const newBuildings = prev.buildings.map(b => {
+        if (b.id === buildingId) {
+          return {
+            ...b,
+            level: b.level + 1,
+            populationCapacity: buildingConfig.populationCapacity * (1 + b.level * 0.2),
+            happinessBonus: buildingConfig.happinessBonus * (1 + b.level * 0.1),
+            upgradeCost: buildingConfig.baseCost * Math.pow(buildingConfig.costMultiplier, b.level + 1),
+          };
+        }
+        return b;
+      });
+
+      return {
+        ...prev,
+        money: (Number(prev.money) || 0) - upgradeCost,
+        buildings: newBuildings,
+      };
+    });
+  }, []);
+
+  const demolishBuilding = useCallback((buildingId: string) => {
+    setState(prev => {
+      const building = prev.buildings.find(b => b.id === buildingId);
+      if (!building) return prev;
+
+      // Refund 50% of base cost
+      const refund = BUILDINGS[building.type].baseCost * 0.5;
+
+      return {
+        ...prev,
+        money: (Number(prev.money) || 0) + refund,
+        buildings: prev.buildings.filter(b => b.id !== buildingId),
+      };
     });
   }, []);
 
@@ -1152,6 +1253,10 @@ export function useGameLoop() {
         };
       });
     },
+    // Building System
+    buildBuilding,
+    upgradeBuilding,
+    demolishBuilding,
     login,
     logout,
   };
