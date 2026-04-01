@@ -1,4 +1,22 @@
-export type ResourceType = 'money' | 'wood' | 'stone' | 'iron' | 'energy' | 'planks' | 'iron_bars' | 'concrete' | 'steel' | 'electronics' | 'research';
+export type ResourceType = 
+  // Tier 1 - Raw Resources
+  | 'money' | 'wood' | 'stone' | 'iron' | 'sand' | 'water' | 'coal' | 'copper_ore' | 'limestone' | 'crude_oil' | 'clay' | 'lead' | 'sulfur' | 'gold' | 'uranium' | 'thorium' | 'wood_plank'
+  // Tier 2 - Basic Processing
+  | 'lumber' | 'stone_block' | 'iron_ingot' | 'copper_ingot' | 'coal_brick' | 'glass_sheet' | 'purified_water' | 'quicklime' | 'charcoal' | 'crude_oil_extract' | 'slag' | 'sawdust'
+  // Tier 3 - Industrial Materials
+  | 'steel' | 'steel_sheet' | 'steel_pipe' | 'copper_wire' | 'plastic' | 'rubber' | 'cement' | 'brick' | 'aluminum_ingot' | 'chemical_resin' | 'fuel_oil' | 'sulfuric_acid' | 'lead_ingot' | 'graphite'
+  // Tier 4 - Components
+  | 'gear' | 'bearing' | 'electric_motor' | 'magnetic_steel' | 'integrated_circuit' | 'pcb' | 'pipe_assembly' | 'gearbox' | 'control_unit' | 'battery' | 'solar_cell' | 'heat_exchanger'
+  | 'lubricant' | 'coolant' | 'spare_parts' | 'gold_filament'
+  // Tier 5 - Final Products
+  | 'factory_machine' | 'basic_electronics' | 'advanced_electronics' | 'food_ration' | 'medical_supply' | 'comfort_item' | 'building_block' | 'steel_frame' | 'reinforced_glass'
+  | 'basic_fuel_rod' | 'vehicle' | 'transport_truck' | 'basic_tool_set' | 'advanced_tool_set'
+  | 'coal_power_plant' | 'diesel_generator' | 'solar_power_array' | 'wind_turbine' | 'nuclear_reactor'
+  | 'basic_automation' | 'advanced_automation' | 'shipping_crate' | 'pallet'
+  // Energy & Utilities
+  | 'energy' | 'research'
+  // Legacy names for compatibility
+  | 'planks' | 'iron_bars' | 'concrete' | 'electronics' | 'concrete_mixer_unit' | 'steel_mill_unit' | 'electronics_factory_unit' | 'laboratory_unit' | 'power_plant_unit' | 'sawmill_unit' | 'foundry_unit' | 'logger_unit' | 'quarry_unit' | 'mine_unit';
 
 export type TruckType = 'basic' | 'fast' | 'heavy';
 
