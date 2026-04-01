@@ -964,11 +964,14 @@ export function useGameLoop() {
       // Using logarithmic scale: 10 pop = easy, 100 pop = moderate, 1000 pop = hardest
       const populationDifficulty = Math.min(0.7, Math.log10(nextState.population + 10) / Math.log10(1010));
       
+      // Add building happiness bonus to target (fixed values)
+      const buildingHappinessBonus = nextState.buildings.reduce((sum, b) => sum + (BUILDINGS[b.type]?.happinessBonus || 0), 0);
+
       // Target happiness: more population = harder to maintain high happiness
       // At 10 pop with full supplies: ~100% happiness
       // At 100 pop with just enough: ~50% happiness
       // At 1000 pop with just enough: ~30% happiness
-      const targetHappiness = baseSatisfaction * 100 * (1 - populationDifficulty);
+      const targetHappiness = Math.min(100, baseSatisfaction * 100 * (1 - populationDifficulty) + buildingHappinessBonus);
       
       // Smooth transition toward target happiness
       if (nextState.populationHappiness < targetHappiness) {

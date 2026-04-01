@@ -287,8 +287,8 @@ export const HEAT_WARNING_THRESHOLD = 600; // Warning level
 // ============ POPULATION CONSTANTS ============
 export const INITIAL_POPULATION = 10;
 export const MAX_POPULATION = 1000;
-export const BASE_POPULATION_GROWTH = 0.1; // Per tick when happy
-export const POPULATION_DECAY = 0.05; // Per tick when unhappy (no food)
+export const BASE_POPULATION_GROWTH = 1; // Per tick when happy (increased from 0.1)
+export const POPULATION_DECAY = 0.5; // Per tick when unhappy (no food)
 
 // Consumption rates per population per tick
 export const FOOD_CONSUMPTION_RATE = 0.1; // Food needed per person
