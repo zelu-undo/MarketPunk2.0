@@ -952,7 +952,32 @@ export function useGameLoop() {
       const hasEnergy = (nextState.resources['energy'] || 0) >= energyNeeded;
       const needsMet = hasFood && hasComfort && hasMedical && hasEnergy;
       
-      // 4. Consume resources (SINK - keeps market alive!)
+      // 4. Calculate satisfaction ratios (0 to 1)
+      const foodRatio = Math.min(1, (nextState.resources['food_ration'] || 0) / Math.max(1, foodNeeded));
+      const comfortRatio = Math.min(1, (nextState.resources['comfort_item'] || 0) / Math.max(1, comfortNeeded));
+      const medicalRatio = Math.min(1, (nextState.resources['medical_supply'] || 0) / Math.max(1, medicalNeeded));
+      
+      // Calculate base satisfaction from resource adequacy
+      const baseSatisfaction = (foodRatio + comfortRatio + medicalRatio) / 3;
+      
+      // Factor in population size - larger populations are harder to keep happy
+      // Using logarithmic scale: 10 pop = easy, 100 pop = moderate, 1000 pop = hardest
+      const populationDifficulty = Math.min(0.7, Math.log10(nextState.population + 10) / Math.log10(1010));
+      
+      // Target happiness: more population = harder to maintain high happiness
+      // At 10 pop with full supplies: ~100% happiness
+      // At 100 pop with just enough: ~50% happiness
+      // At 1000 pop with just enough: ~30% happiness
+      const targetHappiness = baseSatisfaction * 100 * (1 - populationDifficulty);
+      
+      // Smooth transition toward target happiness
+      if (nextState.populationHappiness < targetHappiness) {
+        nextState.populationHappiness = Math.min(targetHappiness, nextState.populationHappiness + HAPPINESS_RECOVERY);
+      } else {
+        nextState.populationHappiness = Math.max(targetHappiness, nextState.populationHappiness - HAPPINESS_DECAY);
+      }
+      
+      // 5. Consume resources (SINK - keeps market alive!)
       if (hasFood) {
         nextState.resources['food_ration'] = (nextState.resources['food_ration'] || 0) - foodNeeded;
       }
@@ -961,13 +986,6 @@ export function useGameLoop() {
       }
       if (hasMedical) {
         nextState.resources['medical_supply'] = (nextState.resources['medical_supply'] || 0) - medicalNeeded;
-      }
-      
-      // 5. Update happiness
-      if (needsMet) {
-        nextState.populationHappiness = Math.min(100, nextState.populationHappiness + HAPPINESS_RECOVERY);
-      } else {
-        nextState.populationHappiness = Math.max(0, nextState.populationHappiness - HAPPINESS_DECAY);
       }
       
       // 6. Population growth - infinite based on building capacity
