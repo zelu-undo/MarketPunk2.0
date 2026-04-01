@@ -104,6 +104,8 @@ export function ResourceGrid({ resources, storageLimits, storageLevels, favorite
         </button>
       </div>
 
+      {/* Hide tier filter when showing favorites */}
+      {!showFavoritesOnly && (
       <div className="flex gap-1 flex-wrap">
         <button
           onClick={() => setTierFilter('all')}
@@ -127,8 +129,47 @@ export function ResourceGrid({ resources, storageLimits, storageLevels, favorite
           </button>
         ))}
       </div>
+      )}
 
-      {tierFilter === 'all' ? (
+      {/* Favorites view - flat grid without tier grouping */}
+      {showFavoritesOnly && favorites.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+          {favorites.map(type => {
+            const info = RESOURCES[type as ResourceType];
+            if (!info) return null;
+            const amount = Number(resources[type as ResourceType]) || 0;
+            const limit = Number(storageLimits[type as ResourceType]) || 1;
+            return (
+              <div key={type} className={`p-2 rounded-lg border ${amount > 0 ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-950 border-zinc-900'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium truncate" style={{ color: info.color }}>{info.label}</span>
+                  <div className="flex items-center gap-1">
+                    {onUpgradeStorage && (
+                      <button 
+                        onClick={() => onUpgradeStorage(type as ResourceType)} 
+                        className="text-zinc-600 hover:text-blue-500 text-[10px]"
+                        title="Upgrade storage"
+                      >
+                        ⬆
+                      </button>
+                    )}
+                    {onToggleFavorite && (
+                      <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500">
+                        <Star className={`w-3 h-3 fill-amber-500 text-amber-500`} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="text-lg font-bold">{amount.toLocaleString()}</div>
+                <div className="text-xs text-zinc-500">/ {limit.toLocaleString()}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Normal tier view - only when NOT showing favorites */}
+      {!showFavoritesOnly && tierFilter === 'all' ? (
         <div className="space-y-4">
           {Object.entries(groupedByTier).sort(([a], [b]) => Number(a) - Number(b)).map(([tier, items]) => (
             <div key={tier} className="border border-zinc-800 rounded-xl overflow-hidden">
