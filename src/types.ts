@@ -112,6 +112,7 @@ export interface AutomationRule {
     amount: number;
   };
   isEnabled: boolean;
+  isPaused: boolean;
 }
 
 export interface User {

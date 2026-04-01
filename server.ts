@@ -243,12 +243,22 @@ app.get("/api/leaderboard", async (req, res) => {
 
     const allPlayers = [...users, ...botStats];
     
-    // Sort by total profit
-    allPlayers.sort((a, b) => (b.total_profit || 0) - (a.total_profit || 0));
+    // Sort by total profit (or money as fallback)
+    allPlayers.sort((a, b) => (b.total_profit || b.money || 0) - (a.total_profit || a.money || 0));
 
-    res.json(allPlayers.slice(0, 50)); // Top 50
+    // If no users, just use bots
+    const finalPlayers = users.length > 0 ? allPlayers : botStats;
+
+    res.json(finalPlayers.slice(0, 50));
   } catch (e) {
-    res.status(500).json({ error: "Failed to fetch leaderboard" });
+    // Fallback to just bots
+    const botStats = BOTS.map(bot => ({
+      username: bot.name,
+      money: bot.money,
+      total_profit: bot.total_profit
+    })).sort((a, b) => (b.total_profit || b.money || 0) - (a.total_profit || a.money || 0));
+    
+    res.json(botStats.slice(0, 50));
   }
 });
 

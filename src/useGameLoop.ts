@@ -279,12 +279,16 @@ export function useGameLoop() {
       const data = await res.json();
       const { market, orderBook: globalOrderBook, tradeHistory: globalTradeHistory } = data;
       
+      // Filter orders for current player (by username or ownerId, or include all if not logged in)
+      const playerOrders = globalOrderBook?.filter((o: any) => 
+        !o.username || o.username === prev.user?.username || o.ownerId === 'player' || o.ownerId === prev.user?.username
+      ) || [];
+
       setState(prev => ({
         ...prev,
         market,
-        // We'll filter the global book for the UI
-        orderBook: globalOrderBook.filter((o: any) => o.username === prev.user?.username || o.ownerId === 'player'),
-        tradeHistory: globalTradeHistory
+        orderBook: playerOrders,
+        tradeHistory: globalTradeHistory || []
       }));
     } catch (e) {
       console.error('Failed to fetch market', e);
@@ -1021,7 +1025,9 @@ export function useGameLoop() {
 
       // Handle Automation (Simplified for simulation)
       nextState.automationRules.forEach(rule => {
-        if (!rule.isEnabled) return;
+        // Skip if not enabled OR if paused
+        if (!rule.isEnabled || rule.isPaused) return;
+        
         const { conditions, action } = rule;
         const allConditionsMet = conditions.every(condition => {
           if (condition.isMarketCondition) {
@@ -1045,11 +1051,20 @@ export function useGameLoop() {
             const unitId = action.resource;
             const unit = nextState.productionUnits.find(u => u.id === unitId);
             if (unit && !unit.isProducing) {
-              const canProduce = unit.input.every(input => input.type === 'energy' || (unit.inputBuffer[input.type] || 0) >= input.amount);
+              const canProduce = unit.input.every(input => {
+                if (input.type === 'energy') return true;
+                const inputAmount = unit.inputBuffer[input.type] || 0;
+                return inputAmount >= input.amount;
+              });
               const outputBufferLimit = unit.output.amount * 20;
-              const hasSpace = (unit.outputBuffer[unit.output.type] || 0) + unit.output.amount <= outputBufferLimit;
+              const currentOutput = unit.outputBuffer[unit.output.type] || 0;
+              const hasSpace = currentOutput + unit.output.amount <= outputBufferLimit;
               
-              if (canProduce && hasSpace) {
+              const resourceLimit = nextState.storageLimits[unit.output.type] || 1;
+              const resourceAmount = nextState.resources[unit.output.type] || 0;
+              const hasStorageSpace = resourceAmount < resourceLimit;
+
+              if (canProduce && hasSpace && hasStorageSpace) {
                 const energyInput = unit.input.find(i => i.type === 'energy');
                 let currentEfficiency = 1.0;
                 let energyConsumed = 0;
@@ -1068,9 +1083,9 @@ export function useGameLoop() {
                     const newInputBuffer = { ...u.inputBuffer };
                     u.input.forEach(input => {
                       if (input.type === 'energy') {
-                        newInputBuffer[input.type] = (newInputBuffer[input.type] || 0) - energyConsumed;
+                        newInputBuffer[input.type] = Math.max(0, (newInputBuffer[input.type] || 0) - energyConsumed);
                       } else {
-                        newInputBuffer[input.type] = (newInputBuffer[input.type] || 0) - input.amount;
+                        newInputBuffer[input.type] = Math.max(0, (newInputBuffer[input.type] || 0) - input.amount);
                       }
                     });
                     return { ...u, isProducing: true, progress: 0, lastStarted: now, inputBuffer: newInputBuffer, currentEfficiency };
@@ -1092,6 +1107,13 @@ export function useGameLoop() {
           const hasSpace = (unit.outputBuffer[unit.output.type] || 0) + unit.output.amount <= outputBufferLimit;
           
           if (canProduce && hasSpace) {
+            // Also check main storage for auto-start
+            const resourceLimit = nextState.storageLimits[unit.output.type] || 1;
+            const resourceAmount = nextState.resources[unit.output.type] || 0;
+            const hasStorageSpace = resourceAmount < resourceLimit;
+            
+            if (!hasStorageSpace) return; // Don't start if storage full
+            
             const energyInput = unit.input.find(i => i.type === 'energy');
             let currentEfficiency = 1.0;
             let energyConsumed = 0;
@@ -1110,9 +1132,9 @@ export function useGameLoop() {
                 const newInputBuffer = { ...u.inputBuffer };
                 u.input.forEach(input => {
                   if (input.type === 'energy') {
-                    newInputBuffer[input.type] = (newInputBuffer[input.type] || 0) - energyConsumed;
+                    newInputBuffer[input.type] = Math.max(0, (newInputBuffer[input.type] || 0) - energyConsumed);
                   } else {
-                    newInputBuffer[input.type] = (newInputBuffer[input.type] || 0) - input.amount;
+                    newInputBuffer[input.type] = Math.max(0, (newInputBuffer[input.type] || 0) - input.amount);
                   }
                 });
                 return { ...u, isProducing: true, progress: 0, lastStarted: now, inputBuffer: newInputBuffer, currentEfficiency };
