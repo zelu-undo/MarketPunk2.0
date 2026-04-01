@@ -74,7 +74,7 @@ export function ResourceGrid({ resources, storageLimits, storageLevels, favorite
     if (!acc[tier]) acc[tier] = [];
     acc[tier].push([type, info]);
     return acc;
-  }, {} as Record<number, [string, any][]);
+  }, {});
 
   return (
     <div className="space-y-4">
