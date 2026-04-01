@@ -305,14 +305,14 @@ export const HAPPINESS_CRITICAL_THRESHOLD = 30;
 // Efficiency bonuses
 export const POPULATION_EFFICIENCY_BONUS = 0.1; // +10% production when needs met
 export const POPULATION_EFFICIENCY_PENALTY = 0.3; // -30% production when needs not met
-export const HAPPINESS_TAX_BONUS = 0.05; // +5% tax per happiness point above 70
+export const HAPPINESS_TAX_BONUS = 0.002; // +0.2% tax per happiness point above 70
 
 // Worker requirements
 export const WORKERS_PER_FACTORY = 5; // Workers needed per factory
 export const BASE_WORKER_PRODUCTION = 0.2; // Base production bonus per worker
 
 // Tax/Income
-export const BASE_TAX_RATE = 0.1; // Base 10% of population generates as tax
+export const BASE_TAX_RATE = 0.01; // Base 1% of population generates as tax
 export const TAX_INTERVAL = 1000; // Every 1 second (tick)
 
 // ============ BUILDINGS ============
