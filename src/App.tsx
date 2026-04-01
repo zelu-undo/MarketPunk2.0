@@ -36,7 +36,7 @@ import {
 } from 'lucide-react';
 import { useGameLoop } from './useGameLoop';
 import { ResourceType, ProductionUnit, MarketItem, AutomationRule, Action, Operator, AutomationCondition, Order, TradeRecord } from './types';
-import { INITIAL_PRODUCTION_UNITS, RESOURCES, STORAGE_UPGRADE_COST, TECHNOLOGIES } from './constants';
+import { INITIAL_PRODUCTION_UNITS, RESOURCES, STORAGE_UPGRADE_COST, TECHNOLOGIES, BUILDINGS } from './constants';
 
 function Shop({ money, unlockedTechs, onOpenModal }: { money: number, unlockedTechs: string[], onOpenModal: (unit: ProductionUnit) => void }) {
   const availableUnits = INITIAL_PRODUCTION_UNITS.filter(unit => {
@@ -84,7 +84,7 @@ import {
   Tooltip as RechartsTooltip
 } from 'recharts';
 
-type Tab = 'dashboard' | 'production' | 'market' | 'automation' | 'shop' | 'logistics' | 'research' | 'leaderboard';
+type Tab = 'dashboard' | 'production' | 'market' | 'automation' | 'shop' | 'logistics' | 'research' | 'leaderboard' | 'buildings';
 
 export default function App() {
   const { 
@@ -108,7 +108,10 @@ export default function App() {
     removeTruck,
     buyTruck,
     login,
-    logout
+    logout,
+    buildBuilding,
+    upgradeBuilding,
+    demolishBuilding
   } = useGameLoop();
 
   useEffect(() => {
@@ -293,7 +296,7 @@ export default function App() {
       <main className="max-w-7xl mx-auto px-4 py-8 pb-24">
         {/* Navigation */}
         <nav className="flex gap-1 p-1 bg-white/5 rounded-xl mb-8 w-fit overflow-x-auto no-scrollbar">
-          {(['dashboard', 'production', 'market', 'automation', 'shop', 'logistics', 'research', 'leaderboard'] as Tab[]).map((tab) => (
+          {(['dashboard', 'production', 'market', 'automation', 'shop', 'logistics', 'research', 'leaderboard', 'buildings'] as Tab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -413,6 +416,15 @@ export default function App() {
                   )}
                 </div>
               </div>
+            )}
+            {activeTab === 'buildings' && (
+              <BuildingsTab 
+                state={state}
+                onBuild={buildBuilding}
+                onUpgrade={upgradeBuilding}
+                onDemolish={demolishBuilding}
+                money={state.money}
+              />
             )}
           </motion.div>
         </AnimatePresence>
@@ -1429,6 +1441,123 @@ function Research({ dataPoints, unlockedTechs, onUnlock }: { dataPoints: number,
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// Buildings Tab Component
+function BuildingsTab({ state, onBuild, onUpgrade, onDemolish, money }: {
+  state: any,
+  onBuild: (type: string) => void,
+  onUpgrade: (id: string) => void,
+  onDemolish: (id: string) => void,
+  money: number
+}) {
+  const buildingTypes = Object.keys(BUILDINGS) as any[];
+  
+  // Calculate total population capacity from buildings
+  const totalPopulation = state.buildings.reduce((sum: number, b: any) => sum + (b.populationCapacity || 0), 0);
+  const totalHappiness = state.buildings.reduce((sum: number, b: any) => sum + (b.happinessBonus || 0), 0);
+  
+  return (
+    <div className="space-y-6">
+      {/* Summary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white/5 border border-white/5 rounded-3xl p-6">
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mb-2">Total Buildings</div>
+          <div className="text-3xl font-mono font-bold text-emerald-400">{state.buildings.length}</div>
+        </div>
+        <div className="bg-white/5 border border-white/5 rounded-3xl p-6">
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mb-2">Population Capacity</div>
+          <div className="text-3xl font-mono font-bold text-cyan-400">{totalPopulation}</div>
+        </div>
+        <div className="bg-white/5 border border-white/5 rounded-3xl p-6">
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mb-2">Happiness Bonus</div>
+          <div className="text-3xl font-mono font-bold text-purple-400">+{totalHappiness}%</div>
+        </div>
+        <div className="bg-white/5 border border-white/5 rounded-3xl p-6">
+          <div className="text-[10px] uppercase tracking-widest text-zinc-500 font-bold mb-2">Current Population</div>
+          <div className="text-3xl font-mono font-bold text-amber-400">{Math.floor(state.population || 0)}</div>
+        </div>
+      </div>
+
+      {/* Build New Building */}
+      <div className="bg-white/5 border border-white/5 rounded-3xl p-6">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <Building className="w-5 h-5 text-emerald-400" />
+          Construct Building
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {buildingTypes.map((type) => {
+            const building = BUILDINGS[type];
+            return (
+              <button
+                key={type}
+                onClick={() => onBuild(type)}
+                disabled={money < building.baseCost}
+                className="bg-black/20 border border-white/10 rounded-2xl p-4 hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed text-left"
+              >
+                <div className="text-sm font-bold text-zinc-200 mb-1">{building.name}</div>
+                <div className="text-xs text-zinc-500 mb-2">Pop: +{building.populationCapacity}</div>
+                <div className="text-xs text-emerald-400 font-mono">{formatCurrency(building.baseCost)}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Existing Buildings */}
+      {state.buildings.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {state.buildings.map((building: any) => {
+            const config = BUILDINGS[building.type];
+            return (
+              <div key={building.id} className="bg-white/5 border border-white/5 rounded-3xl p-6">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 className="font-bold text-lg">{building.name}</h4>
+                    <div className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Level {building.level}</div>
+                  </div>
+                  <button
+                    onClick={() => onDemolish(building.id)}
+                    className="p-2 text-zinc-500 hover:text-red-500 transition-colors"
+                    title="Demolish"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="space-y-3 mb-6">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-500">Population Capacity</span>
+                    <span className="text-cyan-400 font-mono">+{Math.floor(building.populationCapacity)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="text-zinc-500">Happiness Bonus</span>
+                    <span className="text-purple-400 font-mono">+{Math.floor(building.happinessBonus)}%</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => onUpgrade(building.id)}
+                  disabled={money < building.upgradeCost}
+                  className="w-full py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-emerald-500/20 disabled:opacity-30 transition-all"
+                >
+                  Upgrade ({formatCurrency(building.upgradeCost)})
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {state.buildings.length === 0 && (
+        <div className="text-center py-12 text-zinc-500">
+          <Building className="w-12 h-12 mx-auto mb-4 opacity-50" />
+          <p>No buildings constructed yet.</p>
+          <p className="text-xs mt-2">Build houses to increase your population!</p>
+        </div>
+      )}
     </div>
   );
 }
