@@ -444,7 +444,9 @@ setInterval(() => {
 export default app;
 
 // Serve static files and SPA fallback (must be last)
-const distPath = path.join(__dirname, "dist");
+const distPath = process.env.VERCEL 
+  ? path.join(process.cwd(), "dist") 
+  : path.join(__dirname, "dist");
 app.use(express.static(distPath));
 
 app.get("*", (req, res) => {

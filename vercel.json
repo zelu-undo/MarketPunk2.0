@@ -2,10 +2,6 @@
   "version": 2,
   "builds": [
     {
-      "src": "dist/**",
-      "use": "@vercel/static"
-    },
-    {
       "src": "server.ts",
       "use": "@vercel/node"
     }
@@ -16,8 +12,12 @@
       "dest": "/server.ts"
     },
     {
+      "src": "/assets/(.*)",
+      "dest": "/server.ts"
+    },
+    {
       "src": "/(.*)",
-      "dest": "/dist/index.html"
+      "dest": "/server.ts"
     }
   ]
 }
