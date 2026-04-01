@@ -152,6 +152,8 @@ export const PRODUCTION_RECIPES: Record<string, {
   clay_pit: { tier: 1, name: 'Clay Pit', input: [{ type: 'energy', amount: 1 }], output: { type: 'clay', amount: 2 }, duration: 6, description: 'Extracts clay', cost: 120 },
   limestone_quarry: { tier: 1, name: 'Limestone Quarry', input: [{ type: 'energy', amount: 2 }], output: { type: 'limestone', amount: 2 }, duration: 8, description: 'Extracts limestone', cost: 180 },
   oil_rig: { tier: 1, name: 'Oil Rig', input: [{ type: 'energy', amount: 5 }], output: { type: 'crude_oil', amount: 1 }, duration: 15, description: 'Extracts crude oil', cost: 800 },
+  // Food production - Tier 1 (critical for population survival)
+  food_processor: { tier: 1, name: 'Food Processor', input: [{ type: 'wood', amount: 2 }], output: { type: 'food_ration', amount: 3 }, duration: 5, description: 'Processes food from wood', cost: 200 },
 
   // ============ TIER 2 - BASIC PROCESSING ============
   lumber_mill: { tier: 2, name: 'Lumber Mill', input: [{ type: 'wood', amount: 3 }], output: { type: 'lumber', amount: 1 }, duration: 6, description: 'Processes wood into lumber', cost: 300, byproduct: { type: 'sawdust', amount: 1 } },
@@ -246,11 +248,12 @@ export const INITIAL_PRODUCTION_UNITS: ProductionUnit[] = [
   { id: 'quarry', name: 'Stone Quarry', input: [{ type: 'energy', amount: 2 }], output: { type: 'stone', amount: 2 }, duration: 8, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 300, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
   { id: 'mine', name: 'Iron Mine', input: [{ type: 'energy', amount: 2 }], output: { type: 'iron', amount: 2 }, duration: 10, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 400, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
   { id: 'power_plant', name: 'Power Plant', input: [{ type: 'wood', amount: 1 }], output: { type: 'energy', amount: 2 }, duration: 10, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 500, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
+  { id: 'food_processor', name: 'Food Processor', input: [{ type: 'wood', amount: 2 }], output: { type: 'food_ration', amount: 3 }, duration: 5, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 200, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
   { id: 'sawmill', name: 'Sawmill', input: [{ type: 'wood', amount: 2 }, { type: 'energy', amount: 1 }], output: { type: 'planks', amount: 2 }, duration: 8, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 400, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
   { id: 'foundry', name: 'Foundry', input: [{ type: 'iron', amount: 2 }, { type: 'energy', amount: 2 }], output: { type: 'iron_bars', amount: 1 }, duration: 12, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 800, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
   { id: 'concrete_mixer', name: 'Concrete Mixer', input: [{ type: 'stone', amount: 2 }, { type: 'energy', amount: 2 }], output: { type: 'concrete', amount: 1 }, duration: 15, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 800, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
   { id: 'electronics_factory', name: 'Electronics Factory', input: [{ type: 'iron_bars', amount: 1 }, { type: 'planks', amount: 1 }, { type: 'energy', amount: 4 }], output: { type: 'electronics', amount: 1 }, duration: 25, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 2000, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'laboratory', name: 'Laboratory', input: [{ type: 'electronics', amount: 1 }, { type: 'energy', amount: 5 }], output: { type: 'research', amount: 1 }, duration: 30, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 5000, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
+  // Laboratory unlocked at 500 population (handled dynamically)
 ];
 
 export const TECHNOLOGIES: Technology[] = [
