@@ -30,35 +30,95 @@ function getInitialState(user: User | null): GameState {
     steel: 0,
     electronics: 0,
     research: 50,
+    // Add new resource defaults
+    sand: 0,
+    water: 0,
+    coal: 0,
+    copper_ore: 0,
+    limestone: 0,
+    crude_oil: 0,
+    clay: 0,
+    lead: 0,
+    sulfur: 0,
+    gold: 0,
+    uranium: 0,
+    thorium: 0,
+    lumber: 0,
+    stone_block: 0,
+    iron_ingot: 0,
+    copper_ingot: 0,
+    coal_brick: 0,
+    glass_sheet: 0,
+    purified_water: 0,
+    quicklime: 0,
+    charcoal: 0,
+    crude_oil_extract: 0,
+    slag: 0,
+    sawdust: 0,
+    steel_sheet: 0,
+    steel_pipe: 0,
+    copper_wire: 0,
+    plastic: 0,
+    rubber: 0,
+    cement: 0,
+    brick: 0,
+    aluminum_ingot: 0,
+    chemical_resin: 0,
+    fuel_oil: 0,
+    sulfuric_acid: 0,
+    lead_ingot: 0,
+    graphite: 0,
+    gear: 0,
+    bearing: 0,
+    electric_motor: 0,
+    magnetic_steel: 0,
+    integrated_circuit: 0,
+    pcb: 0,
+    pipe_assembly: 0,
+    gearbox: 0,
+    control_unit: 0,
+    battery: 0,
+    solar_cell: 0,
+    heat_exchanger: 0,
+    lubricant: 0,
+    coolant: 0,
+    spare_parts: 0,
+    gold_filament: 0,
+    factory_machine: 0,
+    basic_electronics: 0,
+    advanced_electronics: 0,
+    food_ration: 0,
+    medical_supply: 0,
+    comfort_item: 0,
+    building_block: 0,
+    steel_frame: 0,
+    reinforced_glass: 0,
+    basic_fuel_rod: 0,
+    vehicle: 0,
+    transport_truck: 0,
+    basic_tool_set: 0,
+    advanced_tool_set: 0,
+    coal_power_plant: 0,
+    diesel_generator: 0,
+    solar_power_array: 0,
+    wind_turbine: 0,
+    nuclear_reactor: 0,
+    basic_automation: 0,
+    advanced_automation: 0,
+    shipping_crate: 0,
+    pallet: 0,
+    wood_plank: 0,
   };
   
-  const initialStorageLimits: Record<ResourceType, number> = {
-    money: 1000000000,
-    wood: INITIAL_STORAGE_LIMIT,
-    stone: INITIAL_STORAGE_LIMIT,
-    iron: INITIAL_STORAGE_LIMIT,
-    energy: INITIAL_STORAGE_LIMIT,
-    planks: INITIAL_STORAGE_LIMIT,
-    iron_bars: INITIAL_STORAGE_LIMIT,
-    concrete: INITIAL_STORAGE_LIMIT,
-    steel: INITIAL_STORAGE_LIMIT,
-    electronics: INITIAL_STORAGE_LIMIT,
-    research: 1000000000,
-  };
+  const initialStorageLimits: Record<ResourceType, number> = {};
+  Object.keys(initialResources).forEach(key => {
+    initialStorageLimits[key as ResourceType] = key === 'money' || key === 'research' ? 1000000000 : INITIAL_STORAGE_LIMIT;
+  });
 
-  const initialStorageLevels: Record<ResourceType, number> = {
-    money: 1000,
-    wood: 1,
-    stone: 1,
-    iron: 1,
-    energy: 1,
-    planks: 1,
-    iron_bars: 1,
-    concrete: 1,
-    steel: 1,
-    electronics: 1,
-    research: 1,
-  };
+  const initialStorageLevels: Record<ResourceType, number> = {};
+  Object.keys(initialResources).forEach(key => {
+    initialStorageLevels[key as ResourceType] = key === 'money' || key === 'research' ? 1000 : 1;
+  });
 
   return {
     user,
@@ -85,9 +145,15 @@ function getInitialState(user: User | null): GameState {
     // Heat System
     heatLevel: 0,
     maxHeat: 1000,
+    heatDissipationRate: 10,
     // Population System
     population: 10,
     populationHappiness: 100,
+    populationGrowthRate: 1,
+    // Buildings
+    buildings: [],
+    // Maintenance
+    maintenanceItems: {},
   };
 }
 
