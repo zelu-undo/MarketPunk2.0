@@ -12,6 +12,18 @@
   ],
   "routes": [
     {
+      "src": "/api/auth/login",
+      "dest": "/server.ts"
+    },
+    {
+      "src": "/api/market",
+      "dest": "/server.ts"
+    },
+    {
+      "src": "/api/leaderboard",
+      "dest": "/server.ts"
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/server.ts"
     },
