@@ -405,6 +405,9 @@ export default function App() {
                 favorites={favorites}
                 onToggleFavorite={toggleFavorite}
                 onUpgradeStorage={upgradeStorage}
+                orderBook={state.orderBook}
+                onCreateOrder={createOrder}
+                onCancelOrder={cancelOrder}
               />
             )}
             {activeTab === 'leaderboard' && (
@@ -807,18 +810,7 @@ function MarketOrders({ orderBook, resources, onCancelOrder, onCreateOrder }: { 
 function Market({ market, resources, storageLimits, money, storageLevels, favorites, onToggleFavorite, onUpgradeStorage, orderBook, onCreateOrder, onCancelOrder }: { market: Record<ResourceType, MarketItem>, resources: any, storageLimits: any, money: number, storageLevels?: any, favorites?: ResourceType[], onToggleFavorite?: (type: ResourceType) => void, onUpgradeStorage?: (type: ResourceType) => void, orderBook?: Order[], onCreateOrder?: any, onCancelOrder?: any }) {
   return (
     <div className="space-y-8">
-      {/* Resource Grid */}
-      <ResourceGrid
-        resources={resources}
-        storageLimits={storageLimits}
-        storageLevels={storageLevels}
-        favorites={favorites}
-        onToggleFavorite={onToggleFavorite}
-        onUpgradeStorage={onUpgradeStorage}
-        title="My Resources"
-      />
-
-      {/* Market with Search & Order Book */}
+      {/* Market with Search & Order Book - only this in Market tab */}
       {orderBook && onCreateOrder && (
         <MarketWithSearch
           market={market}

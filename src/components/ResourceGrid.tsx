@@ -59,7 +59,7 @@ export function ResourceGrid({ resources, storageLimits, storageLevels, favorite
 
   const allFavorites = favorites.length > 0 
     ? favorites 
-    : Object.keys(resources).filter(r => (resources[r as number] > 0));
+    : [];
 
   const filteredResources = Object.entries(RESOURCES).filter(([type]) => {
     if (type === 'money' || type === 'research') return false;
@@ -143,19 +143,19 @@ export function ResourceGrid({ resources, storageLimits, storageLevels, favorite
               <div key={type} className={`p-2 rounded-lg border ${amount > 0 ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-950 border-zinc-900'}`}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium truncate" style={{ color: info.color }}>{info.label}</span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {onUpgradeStorage && (
                       <button 
                         onClick={() => onUpgradeStorage(type as ResourceType)} 
-                        className="text-zinc-600 hover:text-blue-500 text-[10px]"
+                        className="text-zinc-600 hover:text-blue-500 text-xs p-0.5"
                         title="Upgrade storage"
                       >
                         ⬆
                       </button>
                     )}
                     {onToggleFavorite && (
-                      <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500">
-                        <Star className={`w-3 h-3 fill-amber-500 text-amber-500`} />
+                      <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500 p-0.5">
+                        <Star className={`w-4 h-4 fill-amber-500 text-amber-500`} />
                       </button>
                     )}
                   </div>
@@ -233,19 +233,19 @@ export function ResourceGrid({ resources, storageLimits, storageLevels, favorite
               <div key={type} className={`p-2 rounded-lg border ${amount > 0 ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-950 border-zinc-900'}`}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-medium truncate" style={{ color: info.color }}>{info.label}</span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {onUpgradeStorage && (
                       <button 
                         onClick={() => onUpgradeStorage(type as ResourceType)} 
-                        className="text-zinc-600 hover:text-blue-500 text-[10px]"
+                        className="text-zinc-600 hover:text-blue-500 text-xs p-0.5"
                         title="Upgrade storage"
                       >
                         ⬆
                       </button>
                     )}
                     {onToggleFavorite && (
-                      <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500">
-                        <Star className={`w-3 h-3 ${allFavorites.includes(type) ? 'fill-amber-500 text-amber-500' : ''}`} />
+                      <button onClick={() => onToggleFavorite(type as ResourceType)} className="text-zinc-600 hover:text-amber-500 p-0.5">
+                        <Star className={`w-4 h-4 ${allFavorites.includes(type) ? 'fill-amber-500 text-amber-500' : ''}`} />
                       </button>
                     )}
                   </div>
