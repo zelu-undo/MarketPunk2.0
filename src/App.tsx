@@ -351,11 +351,13 @@ export default function App() {
                 resources={state.resources} 
                 storageLimits={state.storageLimits}
                 money={state.money}
+                maxCompanies={state.maxCompanies}
                 onStart={startProduction} 
                 onToggleAuto={toggleUnitAutomation}
                 onUpgrade={upgradeUnit}
                 onCreate={createCompany}
                 onDelete={deleteCompany}
+                onUpgradeMaxCompanies={upgradeMaxCompanies}
               />
             )}
             {activeTab === 'automation' && (
@@ -532,9 +534,31 @@ function Dashboard({ state, onUpgradeStorage, onUpgradeMaxCompanies, onUpgradeMa
   );
 }
 
-function Production({ units, resources, storageLimits, money, onStart, onToggleAuto, onUpgrade, onCreate, onDelete }: { units: ProductionUnit[], resources: any, storageLimits: any, money: number, onStart: any, onToggleAuto: any, onUpgrade: any, onCreate: any, onDelete: any }) {
+function Production({ units, resources, storageLimits, money, maxCompanies, onStart, onToggleAuto, onUpgrade, onCreate, onDelete, onUpgradeMaxCompanies }: { units: ProductionUnit[], resources: any, storageLimits: any, money: number, maxCompanies: number, onStart: any, onToggleAuto: any, onUpgrade: any, onCreate: any, onDelete: any, onUpgradeMaxCompanies: any }) {
+  const upgradeCost = 1000 * maxCompanies;
   return (
     <div className="space-y-6">
+      {/* Production Slots & Upgrade */}
+      <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="p-2 bg-green-500/20 rounded-lg">
+            <Factory className="w-5 h-5 text-green-500" />
+          </div>
+          <div>
+            <div className="font-medium">Production Slots</div>
+            <div className="text-sm text-zinc-400">{units.length} / {maxCompanies} used</div>
+          </div>
+        </div>
+        <button
+          onClick={onUpgradeMaxCompanies}
+          disabled={money < upgradeCost}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-zinc-700 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+        >
+          <ArrowUp className="w-4 h-4" />
+          +1 Slot (${upgradeCost.toLocaleString()})
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {units.map((unit) => {
         const canAfford = unit.input.every(input => (Number(unit.inputBuffer[input.type]) || 0) >= (Number(input.amount) || 0));
