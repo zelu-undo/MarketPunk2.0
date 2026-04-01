@@ -37,6 +37,8 @@ import {
 import { useGameLoop } from './useGameLoop';
 import { ResourceType, ProductionUnit, MarketItem, AutomationRule, Action, Operator, AutomationCondition, Order, TradeRecord } from './types';
 import { INITIAL_PRODUCTION_UNITS, RESOURCES, STORAGE_UPGRADE_COST, TECHNOLOGIES, BUILDINGS } from './constants';
+import { ResourceGrid } from './components/ResourceGrid';
+import { MarketResourceSelector } from './components/MarketResourceSelector';
 
 function Shop({ money, unlockedTechs, onOpenModal }: { money: number, unlockedTechs: string[], onOpenModal: (unit: ProductionUnit) => void }) {
   const availableUnits = INITIAL_PRODUCTION_UNITS.filter(unit => {
