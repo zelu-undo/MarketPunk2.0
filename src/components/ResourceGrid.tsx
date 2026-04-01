@@ -51,7 +51,7 @@ function getTier(resourceType: string): number {
   return tierMap[resourceType] || 2;
 }
 
-export function ResourceGrid({ resources, storageLimits, storageLevels, favorites = [], onToggleFavorite, title }: ResourceGridProps) {
+export function ResourceGrid({ resources, storageLimits, storageLevels, favorites = [], onToggleFavorite, onUpgradeStorage, title }: ResourceGridProps) {
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
   const [search, setSearch] = useState('');
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
