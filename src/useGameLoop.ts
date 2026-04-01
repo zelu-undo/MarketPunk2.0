@@ -21,7 +21,6 @@ import {
   CRITICAL_HEAT_THRESHOLD,
   // Population constants
   INITIAL_POPULATION,
-  MAX_POPULATION,
   FOOD_CONSUMPTION_RATE,
   COMFORT_CONSUMPTION_RATE,
   MEDICAL_CONSUMPTION_RATE,
@@ -109,7 +108,7 @@ function getInitialState(user: User | null): GameState {
     factory_machine: 0,
     basic_electronics: 0,
     advanced_electronics: 0,
-    food_ration: 0,
+    food_ration: 100,  // Starting food for population
     medical_supply: 0,
     comfort_item: 0,
     building_block: 0,
@@ -932,20 +931,24 @@ export function useGameLoop() {
       nextState.heatLevel = Math.max(0, Math.min(nextState.maxHeat, nextState.heatLevel - heatDecay + heatGenerated));
 
       // ===== POPULATION SYSTEM =====
-      // 1. Calculate total needs based on population
+      // 1. Calculate total population capacity from buildings
+      const totalPopulationCapacity = nextState.buildings.reduce((sum, b) => sum + (BUILDINGS[b.type]?.populationCapacity || 0), 0);
+      const baseCapacity = 50; // Base capacity without buildings
+      
+      // 2. Calculate total needs based on population
       const foodNeeded = Math.ceil(nextState.population * FOOD_CONSUMPTION_RATE);
       const comfortNeeded = Math.ceil(nextState.population * COMFORT_CONSUMPTION_RATE);
       const medicalNeeded = Math.ceil(nextState.population * MEDICAL_CONSUMPTION_RATE);
       const energyNeeded = Math.ceil(nextState.population * ENERGY_CONSUMPTION_RATE);
       
-      // 2. Check if needs are met
+      // 3. Check if needs are met
       const hasFood = (nextState.resources['food_ration'] || 0) >= foodNeeded;
       const hasComfort = (nextState.resources['comfort_item'] || 0) >= comfortNeeded;
       const hasMedical = (nextState.resources['medical_supply'] || 0) >= medicalNeeded;
       const hasEnergy = (nextState.resources['energy'] || 0) >= energyNeeded;
       const needsMet = hasFood && hasComfort && hasMedical && hasEnergy;
       
-      // 3. Consume resources (SINK - keeps market alive!)
+      // 4. Consume resources (SINK - keeps market alive!)
       if (hasFood) {
         nextState.resources['food_ration'] = (nextState.resources['food_ration'] || 0) - foodNeeded;
       }
@@ -956,17 +959,22 @@ export function useGameLoop() {
         nextState.resources['medical_supply'] = (nextState.resources['medical_supply'] || 0) - medicalNeeded;
       }
       
-      // 4. Update happiness
+      // 5. Update happiness
       if (needsMet) {
         nextState.populationHappiness = Math.min(100, nextState.populationHappiness + HAPPINESS_RECOVERY);
       } else {
         nextState.populationHappiness = Math.max(0, nextState.populationHappiness - HAPPINESS_DECAY);
       }
       
-      // 5. Population growth/decay
-      if (needsMet && nextState.populationHappiness > 70) {
-        nextState.population = Math.min(MAX_POPULATION, nextState.population + BASE_POPULATION_GROWTH);
+      // 6. Population growth - infinite based on building capacity
+      const maxPopulation = baseCapacity + totalPopulationCapacity;
+      if (needsMet && nextState.populationHappiness > 70 && nextState.population < maxPopulation) {
+        // Growth rate slows as approaching capacity
+        const spaceRemaining = maxPopulation - nextState.population;
+        const growthFactor = Math.min(1, spaceRemaining / 50); // Slower growth as fills up
+        nextState.population = Math.min(maxPopulation, nextState.population + BASE_POPULATION_GROWTH * growthFactor);
       } else if (!hasFood) {
+        // Population decays without food
         nextState.population = Math.max(0, nextState.population - POPULATION_DECAY);
       }
       
