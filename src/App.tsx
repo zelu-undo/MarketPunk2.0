@@ -399,7 +399,11 @@ export default function App() {
                 market={state.market} 
                 resources={state.resources} 
                 storageLimits={state.storageLimits}
+                storageLevels={state.storageLevels}
                 money={state.money}
+                favorites={favorites}
+                onToggleFavorite={toggleFavorite}
+                onUpgradeStorage={upgradeStorage}
               />
             )}
             {activeTab === 'leaderboard' && (
@@ -799,9 +803,21 @@ function MarketOrders({ orderBook, resources, onCancelOrder, onCreateOrder }: { 
   );
 }
 
-function Market({ market, resources, storageLimits, money }: { market: Record<ResourceType, MarketItem>, resources: any, storageLimits: any, money: number }) {
+function Market({ market, resources, storageLimits, money, storageLevels, favorites, onToggleFavorite, onUpgradeStorage }: { market: Record<ResourceType, MarketItem>, resources: any, storageLimits: any, money: number, storageLevels?: any, favorites?: ResourceType[], onToggleFavorite?: (type: ResourceType) => void, onUpgradeStorage?: (type: ResourceType) => void }) {
   return (
     <div className="space-y-8">
+      {/* Resource Grid */}
+      <ResourceGrid
+        resources={resources}
+        storageLimits={storageLimits}
+        storageLevels={storageLevels}
+        favorites={favorites}
+        onToggleFavorite={onToggleFavorite}
+        onUpgradeStorage={onUpgradeStorage}
+        title="My Resources"
+      />
+
+      {/* Market Orders */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {Object.entries(market).map(([type, item]) => {
           if (type === 'money' || type === 'research') return null;
