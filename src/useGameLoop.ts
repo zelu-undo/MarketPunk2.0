@@ -947,7 +947,18 @@ export function useGameLoop() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setState({ ...parsed, user });
+        // Merge with initial state to ensure all new fields exist
+        const initialState = getInitialState(user);
+        setState({ 
+          ...initialState, 
+          ...parsed, 
+          user,
+          dataPoints: typeof parsed.dataPoints === 'number' ? parsed.dataPoints : 60,
+          heatLevel: typeof parsed.heatLevel === 'number' ? parsed.heatLevel : 0,
+          maxHeat: typeof parsed.maxHeat === 'number' ? parsed.maxHeat : 1000,
+          population: typeof parsed.population === 'number' ? parsed.population : 10,
+          populationHappiness: typeof parsed.populationHappiness === 'number' ? parsed.populationHappiness : 100,
+        });
       } catch (e) {
         setState(getInitialState(user));
       }
