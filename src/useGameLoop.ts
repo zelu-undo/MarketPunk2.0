@@ -279,17 +279,18 @@ export function useGameLoop() {
       const data = await res.json();
       const { market, orderBook: globalOrderBook, tradeHistory: globalTradeHistory } = data;
       
-      // Filter orders for current player (by username or ownerId, or include all if not logged in)
-      const playerOrders = globalOrderBook?.filter((o: any) => 
-        !o.username || o.username === prev.user?.username || o.ownerId === 'player' || o.ownerId === prev.user?.username
-      ) || [];
-
-      setState(prev => ({
-        ...prev,
-        market,
-        orderBook: playerOrders,
-        tradeHistory: globalTradeHistory || []
-      }));
+      // Filter orders for current player - use setState callback to access prev
+      setState(prev => {
+        const playerOrders = globalOrderBook?.filter((o: any) =>
+          !o.username || o.username === prev.user?.username || o.ownerId === 'player' || o.ownerId === prev.user?.username
+        ) || [];
+        return {
+          ...prev,
+          market,
+          orderBook: playerOrders,
+          tradeHistory: globalTradeHistory || []
+        };
+      });
     } catch (e) {
       console.error('Failed to fetch market', e);
     }
