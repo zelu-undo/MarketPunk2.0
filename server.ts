@@ -68,30 +68,38 @@ if (marketState.steel) marketState.steel.price = 300;
 if (marketState.electronics) marketState.electronics.price = 500;
 
 // Initialize market from Supabase if keys are present
+let ecs: EconomicController = new EconomicController(Object.keys(RESOURCES));
+
 async function initMarket() {
   if (supabase) {
-    const { data, error } = await supabase.from('market_state').select('*');
-    if (data && data.length > 0) {
-      data.forEach(item => {
-        marketState[item.id] = {
-          price: item.price,
-          demand: item.demand,
-          supply: item.supply,
-          history: item.history || [],
-          base_price: item.base_price,
-          volatility: item.volatility
-        };
-      });
-      console.log('Market state loaded from Supabase:', Object.keys(marketState));
-    } else {
-      console.log('No market state in Supabase, using defaults');
+    try {
+      const { data, error } = await supabase.from('market_state').select('*');
+      if (error) {
+        console.error('Error loading market from Supabase:', error);
+      } else if (data && data.length > 0) {
+        data.forEach(item => {
+          marketState[item.id] = {
+            price: item.price,
+            demand: item.demand,
+            supply: item.supply,
+            history: item.history || [],
+            base_price: item.base_price,
+            volatility: item.volatility
+          };
+        });
+        console.log('Market state loaded from Supabase:', Object.keys(marketState));
+        
+        // Recreate ECS with loaded market state
+        ecs = new EconomicController(Object.keys(marketState) as any[]);
+      } else {
+        console.log('No market state in Supabase, using defaults');
+      }
+    } catch (err) {
+      console.error('Failed to init market:', err);
     }
   }
 }
 initMarket();
-
-// Initialize ECS
-const ecs = new EconomicController(Object.keys(marketState) as any[]);
 
 // Auth Routes
 app.post("/api/auth/register", async (req, res) => {
