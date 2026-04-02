@@ -234,12 +234,19 @@ app.get("/api/leaderboard", async (req, res) => {
       if (data) users = data;
     }
 
-    // Generate bot stats based on trade history
-    const botStats = BOTS.map(bot => ({
-      username: bot.name,
-      money: bot.money,
-      total_profit: bot.total_profit
-    }));
+    // Generate bot stats - update their profits based on their strategy success
+    const botStats = BOTS.map(bot => {
+      // Bots gain profits over time based on their level and strategy
+      const baseProfit = bot.level * 100 + Math.random() * bot.level * 50;
+      const strategyBonus = bot.strategy === 'sell_high' ? 1.2 : bot.strategy === 'buy_low' ? 1.1 : 1.0;
+      const realisticProfit = Math.floor(baseProfit * strategyBonus);
+      
+      return {
+        username: bot.name,
+        money: bot.money,
+        total_profit: realisticProfit
+      };
+    });
 
     const allPlayers = [...users, ...botStats];
     
@@ -251,12 +258,18 @@ app.get("/api/leaderboard", async (req, res) => {
 
     res.json(finalPlayers.slice(0, 50));
   } catch (e) {
-    // Fallback to just bots
-    const botStats = BOTS.map(bot => ({
-      username: bot.name,
-      money: bot.money,
-      total_profit: bot.total_profit
-    })).sort((a, b) => (b.total_profit || b.money || 0) - (a.total_profit || a.money || 0));
+    // Fallback to just bots with realistic profits
+    const botStats = BOTS.map(bot => {
+      const baseProfit = bot.level * 100 + Math.random() * bot.level * 50;
+      const strategyBonus = bot.strategy === 'sell_high' ? 1.2 : bot.strategy === 'buy_low' ? 1.1 : 1.0;
+      const realisticProfit = Math.floor(baseProfit * strategyBonus);
+      
+      return {
+        username: bot.name,
+        money: bot.money,
+        total_profit: realisticProfit
+      };
+    }).sort((a, b) => (b.total_profit || b.money || 0) - (a.total_profit || a.money || 0));
     
     res.json(botStats.slice(0, 50));
   }
@@ -271,6 +284,13 @@ interface Bot {
   total_profit: number;
   level: number;
   resources: Record<string, number>;
+  internalState?: {
+    lastAction: number;
+    riskTolerance: number;
+    lastPrice: Record<string, number>;
+    inventory: Record<string, number>;
+    needsResources: string[];
+  };
 }
 
 const BOTS: Bot[] = [
@@ -359,57 +379,103 @@ setInterval(() => {
     }
   });
 
-  // 2. Bot actions (Bots place orders instead of instant supply/demand)
+  // 2. Bot actions - Realistic human-like behavior
+  const now = Date.now();
+  
   BOTS.forEach(bot => {
-    // 1. Simulate Production
-    const productionAmount = bot.level * 5; // Increased production
-    bot.resources[bot.target] = (bot.resources[bot.target] || 0) + productionAmount;
-
-    // 2. Upgrade Logic
-    const upgradeCost = bot.level * 5000;
-    if (bot.money > upgradeCost * 2) {
-      bot.money -= upgradeCost;
-      bot.level++;
+    // Initialize bot's internal state if not exists
+    if (!bot.internalState) {
+      bot.internalState = {
+        lastAction: 0,
+        riskTolerance: 0.5 + Math.random() * 0.4,
+        lastPrice: {},
+        inventory: {},
+        needsResources: ['energy', 'food_ration', 'wood']
+      };
     }
-
-    // 3. Market Actions
-    // Activity factor (increased to 40%)
-    if (Math.random() < 0.4) {
-      const type = bot.target;
-      const item = marketState[type];
+    
+    const state = bot.internalState;
+    
+    // 1. REALISTIC PRODUCTION - Not all bots produce every tick
+    if (now - state.lastAction > 2000) {
+      const productionMultiplier = state.riskTolerance * (0.7 + Math.random() * 0.6);
+      const productionAmount = Math.floor(bot.level * 5 * productionMultiplier);
       
-      // Sell produced resources
-      if (bot.resources[type] > 0) {
-        const sellAmount = bot.resources[type];
-        // Price around market price to ensure matches (0.9 to 1.1 of current market price)
-        const sellPrice = item.price * (0.9 + Math.random() * 0.2);
+      // Some bots hold inventory instead of selling immediately
+      const holdPercentage = 0.2 + Math.random() * 0.3;
+      const sellAmount = Math.floor(productionAmount * (1 - holdPercentage));
+      const holdAmount = productionAmount - sellAmount;
+      
+      bot.resources[bot.target] = (bot.resources[bot.target] || 0) + holdAmount;
+      
+      if (sellAmount > 0) {
+        const item = marketState[bot.target];
+        let priceMultiplier;
+        
+        if (bot.strategy === 'sell_high') {
+          priceMultiplier = Math.random() < 0.3 ? 1.1 + Math.random() * 0.3 : 0.95 + Math.random() * 0.1;
+        } else if (bot.strategy === 'buy_low') {
+          priceMultiplier = 0.8 + Math.random() * 0.15;
+        } else {
+          priceMultiplier = 0.9 + Math.random() * 0.2;
+        }
+        
+        const sellPrice = item.price * priceMultiplier;
         
         globalOrderBook.push({
           id: 'bot-' + Math.random().toString(36).substr(2, 5),
           username: bot.name,
           type: 'sell',
-          resource: type,
+          resource: bot.target,
           amount: sellAmount,
           price: parseFloat(sellPrice.toFixed(2)),
-          timestamp: Date.now()
+          timestamp: now
         });
-        bot.resources[type] = 0; // Assume they put all on market
       }
+    }
 
-      // Buy inputs (ALL bots buy things to keep economy moving)
-      if (bot.money > 5000) {
+    // 2. HUMAN-LIKE UPGRADE BEHAVIOR
+    const upgradeCost = bot.level * 5000;
+    const moneyRatio = bot.money / (upgradeCost * 3);
+    
+    if (moneyRatio > 1 && Math.random() < 0.3) {
+      bot.money -= upgradeCost;
+      bot.level++;
+    }
+
+    // 3. VARIABLE MARKET ACTIVITY
+    const activityChance = 0.25 + (Math.sin(now / 60000) * 0.15);
+    const isActive = Math.random() < activityChance;
+    
+    if (isActive && bot.money > 3000) {
+      const type = bot.target;
+      const item = marketState[type];
+      
+      if (!state.lastPrice[type]) state.lastPrice[type] = item.price;
+      const priceChange = (item.price - state.lastPrice[type]) / state.lastPrice[type];
+      state.lastPrice[type] = item.price;
+
+      let willBuy = true;
+      if (priceChange > 0.1 && Math.random() < 0.4) {
+        willBuy = false;
+      }
+      
+      if (willBuy) {
         const resources = Object.keys(marketState);
-        // Pick a random resource that they DON'T produce
-        const buyTargets = resources.filter(r => r !== type);
-        const buyTarget = buyTargets[Math.floor(Math.random() * buyTargets.length)];
+        const buyTarget = state.needsResources[Math.floor(Math.random() * state.needsResources.length)] || 
+                         resources[Math.floor(Math.random() * resources.length)];
         const buyItem = marketState[buyTarget];
         
-        // Buy price around market price (0.95 to 1.05) to cross spread and match with sellers
-        const buyPrice = buyItem.price * (0.95 + Math.random() * 0.1);
+        let priceBias;
+        if (bot.strategy === 'sell_high') priceBias = 1.02;
+        else if (bot.strategy === 'buy_low') priceBias = 0.98;
+        else priceBias = 0.95 + Math.random() * 0.1;
         
-        // Spend 10% to 20% of their money
-        const spendAmount = bot.money * (0.1 + Math.random() * 0.1);
-        const buyAmount = Math.floor(spendAmount / buyPrice);
+        const buyPrice = buyItem.price * priceBias;
+        
+        const spendPercent = 0.05 + Math.random() * 0.15;
+        const spendAmount = bot.money * spendPercent;
+        const buyAmount = Math.floor(Math.min(spendAmount / buyPrice, buyItem.supply));
         
         if (buyAmount > 0) {
           globalOrderBook.push({
@@ -419,11 +485,40 @@ setInterval(() => {
             resource: buyTarget,
             amount: buyAmount,
             price: parseFloat(buyPrice.toFixed(2)),
-            timestamp: Date.now()
+            timestamp: now
           });
+          
+          state.inventory[buyTarget] = (state.inventory[buyTarget] || 0) + buyAmount;
+          
+          if (Math.random() < 0.1) {
+            const neededIdx = Math.floor(Math.random() * state.needsResources.length);
+            if (state.inventory[state.needsResources[neededIdx]] > 10) {
+              state.needsResources.splice(neededIdx, 1);
+              state.needsResources.push(resources[Math.floor(Math.random() * resources.length)]);
+            }
+          }
         }
       }
+      
+      state.lastAction = now;
     }
+    
+    // 4. OCCASIONAL MISTAKES
+    if (Math.random() < 0.02 && bot.money > 10000) {
+      const item = marketState[bot.target];
+      globalOrderBook.push({
+        id: 'bot-' + Math.random().toString(36).substr(2, 5),
+        username: bot.name,
+        type: 'sell',
+        resource: bot.target,
+        amount: Math.floor(Math.random() * 50) + 10,
+        price: item.price * 0.5,
+        timestamp: now
+      });
+    }
+    
+    // 5. Track profits for leaderboard
+    bot.total_profit = (bot.total_profit || 0) + Math.floor(Math.random() * bot.level * 10);
   });
 
   // Cleanup old bot orders to prevent book bloat
