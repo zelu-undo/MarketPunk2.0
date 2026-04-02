@@ -48,7 +48,6 @@ let activeUsers = 0;
 const users: any[] = []; // In-memory user store for demo
 let globalOrderBook: any[] = [];
 let globalTradeHistory: any[] = [];
-let staticSyncCounter = 0; // Counter for periodic sync to Supabase
 
 // Initialize marketState with ALL resources from constants
 let marketState: any = {};
@@ -73,18 +72,13 @@ async function initMarket() {
     const { data, error } = await supabase.from('market_state').select('*');
     if (data && data.length > 0) {
       data.forEach(item => {
-        marketState[item.id] = {
+        marketState[item.resource_type] = {
           price: item.price,
           demand: item.demand,
           supply: item.supply,
-          history: item.history || [],
-          base_price: item.base_price,
-          volatility: item.volatility
+          history: item.history || []
         };
       });
-      console.log('Market state loaded from Supabase:', Object.keys(marketState));
-    } else {
-      console.log('No market state in Supabase, using defaults');
     }
   }
 }
@@ -140,29 +134,8 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ message: error.message });
     }
     activeUsers++;
-    
-    // Buscar money do usuário no game_states
-    let money = 1000; // Default
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', username)
-      .single();
-    
-    if (profile) {
-      const { data: gameState } = await supabase
-        .from('game_states')
-        .select('money')
-        .eq('user_id', profile.id)
-        .single();
-      
-      if (gameState) {
-        money = gameState.money;
-      }
-    }
-    
     const token = jwt.sign({ username, id: data.user.id }, JWT_SECRET);
-    res.json({ username, money, token });
+    res.json({ username, token });
   } else {
     // Fallback for local demo
     const user = users.find(u => u.username === username);
@@ -298,26 +271,17 @@ app.post("/api/market/contracts/:id/accept", (req, res) => {
     }
 
     if (payment > 0 && supabase) {
-      // Buscar o user_id pelo username na tabela profiles
-      supabase.from('profiles')
-        .select('id')
+      supabase.from('users')
+        .select('money')
         .eq('username', decoded.username)
         .single()
-        .then(({ data: profile }) => {
-          if (profile) {
-            supabase.from('game_states')
-              .select('money')
-              .eq('user_id', profile.id)
-              .single()
-              .then(({ data: gameState }) => {
-                if (gameState) {
-                  supabase.from('game_states')
-                    .update({ money: gameState.money + payment })
-                    .eq('user_id', profile.id)
-                    .then(({ error }) => {
-                      if (error) console.error('Failed to pay player upfront:', error);
-                    });
-                }
+        .then(({ data }) => {
+          if (data) {
+            supabase.from('users')
+              .update({ money: data.money + payment })
+              .eq('username', decoded.username)
+              .then(({ error }) => {
+                if (error) console.error('Failed to pay player upfront:', error);
               });
           }
         });
@@ -368,26 +332,17 @@ app.post("/api/market/contracts/:id/deliver", (req, res) => {
     }
     
     if (payment > 0 && supabase) {
-      // Buscar o user_id pelo username na tabela profiles
-      supabase.from('profiles')
-        .select('id')
+      supabase.from('users')
+        .select('money')
         .eq('username', decoded.username)
         .single()
-        .then(({ data: profile }) => {
-          if (profile) {
-            supabase.from('game_states')
-              .select('money')
-              .eq('user_id', profile.id)
-              .single()
-              .then(({ data: gameState }) => {
-                if (gameState) {
-                  supabase.from('game_states')
-                    .update({ money: gameState.money + payment })
-                    .eq('user_id', profile.id)
-                    .then(({ error }) => {
-                      if (error) console.error('Failed to pay player:', error);
-                    });
-                }
+        .then(({ data }) => {
+          if (data) {
+            supabase.from('users')
+              .update({ money: data.money + payment })
+              .eq('username', decoded.username)
+              .then(({ error }) => {
+                if (error) console.error('Failed to pay player:', error);
               });
           }
         });
@@ -401,21 +356,11 @@ app.post("/api/market/contracts/:id/deliver", (req, res) => {
 
 app.get("/api/leaderboard", async (req, res) => {
   try {
-    // Get real users from Supabase - join profiles with game_states
+    // Get real users from Supabase
     let users: any[] = [];
     if (supabase) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('username, game_states(money, total_profit)')
-        .order('game_states.total_profit', { ascending: false });
-      
-      if (data) {
-        users = data.map(p => ({
-          username: p.username,
-          money: p.game_states?.money || 0,
-          total_profit: p.game_states?.total_profit || 0
-        }));
-      }
+      const { data } = await supabase.from('users').select('username, money, total_profit');
+      if (data) users = data;
     }
 
     // Generate NPC Contracts stats (or just ECS stats)
@@ -511,26 +456,18 @@ ecs.tick(marketState, globalOrderBook, globalTradeHistory);
   for (const [id, contract] of ecs.contracts.entries()) {
     if (contract.status === 'expired' && contract.assignedPlayerId) {
       // Deduct penalty from player
-      if (supabase && contract.penalty) {
-        supabase.from('profiles')
-          .select('id')
+      if (supabase) {
+        supabase.from('users')
+          .select('money')
           .eq('username', contract.assignedPlayerId)
           .single()
-          .then(({ data: profile }) => {
-            if (profile) {
-              supabase.from('game_states')
-                .select('money')
-                .eq('user_id', profile.id)
-                .single()
-                .then(({ data: gameState }) => {
-                  if (gameState) {
-                    supabase.from('game_states')
-                      .update({ money: Math.max(0, gameState.money - contract.penalty) })
-                      .eq('user_id', profile.id)
-                      .then(({ error }) => {
-                        if (error) console.error('Failed to deduct penalty:', error);
-                      });
-                  }
+          .then(({ data }) => {
+            if (data) {
+              supabase.from('users')
+                .update({ money: data.money - contract.penalty })
+                .eq('username', contract.assignedPlayerId)
+                .then(({ error }) => {
+                  if (error) console.error('Failed to deduct penalty:', error);
                 });
             }
           });
@@ -544,51 +481,22 @@ ecs.tick(marketState, globalOrderBook, globalTradeHistory);
     globalOrderBook = globalOrderBook.filter(o => !o.username.startsWith('NPC_') || (Date.now() - o.timestamp < 60000));
   }
 
-  // Sync to Supabase periodically (every 10 seconds to avoid too many writes)
-  staticSyncCounter++;
-  if (staticSyncCounter >= 10 && supabase) {
-    staticSyncCounter = 0;
-    console.log('Starting Supabase sync...');
-    
-    // Sync market state
-    (async () => {
+  // Sync to Supabase periodically
+  if (supabase) {
+    Object.keys(marketState).forEach(async type => {
       try {
-        for (const type of Object.keys(marketState)) {
-          const item = marketState[type];
-          // Try insert first
-          const { error } = await supabase.from('market_state').insert({
-            id: type,
-            price: item.price,
-            demand: item.demand || 100,
-            supply: item.supply || 100,
-            history: item.history || [],
-            base_price: item.base_price || item.price,
-            volatility: item.volatility || 0.05,
-            last_update: new Date().toISOString()
-          });
-          
-          if (error) {
-            if (error.code === '23505') {
-              // Already exists, update instead
-              await supabase.from('market_state').update({
-                price: item.price,
-                demand: item.demand || 100,
-                supply: item.supply || 100,
-                history: item.history || [],
-                base_price: item.base_price || item.price,
-                volatility: item.volatility || 0.05,
-                last_update: new Date().toISOString()
-              }).eq('id', type);
-            } else {
-              console.error(`Error syncing ${type}:`, error.message);
-            }
-          }
-        }
-        console.log('Market state synced to Supabase');
+        const item = marketState[type];
+        await supabase.from('market_state').upsert({
+          resource_type: type,
+          price: item.price,
+          demand: item.demand,
+          supply: item.supply,
+          history: item.history
+        });
       } catch (err) {
-        console.error('Failed to sync market state to Supabase:', err);
+        console.error(`Failed to sync ${type} to Supabase:`, err);
       }
-    })();
+    });
   }
 }, 1000);
 
