@@ -16,9 +16,17 @@ const JWT_SECRET = process.env.JWT_SECRET || "marketpunk-secret-key";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 
+// Debug log
+console.log('SUPABASE_URL:', SUPABASE_URL ? 'set' : 'not set');
+console.log('SUPABASE_SERVICE_ROLE_KEY:', SUPABASE_SERVICE_ROLE_KEY ? 'set' : 'not set');
+
 const supabase = (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) 
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null;
+
+if (!supabase) {
+  console.log('WARNING: Supabase not configured, using in-memory storage');
+}
 
 /**
  * Supabase SQL Schema:
@@ -136,41 +144,46 @@ app.post("/api/auth/register", async (req, res) => {
 
 app.post("/api/auth/login", async (req, res) => {
   const { username, password } = req.body;
-  console.log(`Login attempt: ${username}`);
+  console.log(`Login attempt: ${username}, supabase: ${!!supabase}`);
 
   if (supabase) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: `${username}@marketpunk.local`,
-      password: password
-    });
-    if (error) {
-      console.log(`Login failed for ${username}: ${error.message}`);
-      return res.status(401).json({ message: error.message });
-    }
-    activeUsers++;
-    
-    // Buscar money do usuário no game_states
-    let money = 1000; // Default
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('username', username)
-      .single();
-    
-    if (profile) {
-      const { data: gameState } = await supabase
-        .from('game_states')
-        .select('money')
-        .eq('user_id', profile.id)
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: `${username}@marketpunk.local`,
+        password: password
+      });
+      if (error) {
+        console.log(`Login failed for ${username}: ${error.message}`);
+        return res.status(401).json({ message: error.message });
+      }
+      activeUsers++;
+      
+      // Buscar money do usuário no game_states
+      let money = 1000; // Default
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', username)
         .single();
       
-      if (gameState) {
-        money = gameState.money;
+      if (profile) {
+        const { data: gameState } = await supabase
+          .from('game_states')
+          .select('money')
+          .eq('user_id', profile.id)
+          .single();
+        
+        if (gameState) {
+          money = gameState.money;
+        }
       }
+      
+      const token = jwt.sign({ username, id: data.user.id }, JWT_SECRET);
+      res.json({ username, money, token });
+    } catch (err: any) {
+      console.error('Login error:', err.message);
+      res.status(500).json({ message: "Server error: " + err.message });
     }
-    
-    const token = jwt.sign({ username, id: data.user.id }, JWT_SECRET);
-    res.json({ username, money, token });
   } else {
     // Fallback for local demo
     const user = users.find(u => u.username === username);
