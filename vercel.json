@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "server.ts",
+      "src": "src/index.ts",
       "use": "@vercel/node"
     },
     {
@@ -13,19 +13,19 @@
   "routes": [
     {
       "src": "/api/auth/login",
-      "dest": "/server.ts"
+      "dest": "/src/index.ts"
     },
     {
       "src": "/api/market",
-      "dest": "/server.ts"
+      "dest": "/src/index.ts"
     },
     {
       "src": "/api/leaderboard",
-      "dest": "/server.ts"
+      "dest": "/src/index.ts"
     },
     {
       "src": "/api/(.*)",
-      "dest": "/server.ts"
+      "dest": "/src/index.ts"
     },
     {
       "src": "/assets/(.*)",
