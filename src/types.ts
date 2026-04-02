@@ -1,232 +1,63 @@
-export type ResourceType = 
-  // Tier 1 - Raw Resources
-  | 'money' | 'wood' | 'stone' | 'iron' | 'sand' | 'water' | 'coal' | 'copper_ore' | 'limestone' | 'crude_oil' | 'clay' | 'lead' | 'sulfur' | 'gold' | 'uranium' | 'thorium' | 'wood_plank'
-  // Tier 2 - Basic Processing
-  | 'lumber' | 'stone_block' | 'iron_ingot' | 'copper_ingot' | 'coal_brick' | 'glass_sheet' | 'purified_water' | 'quicklime' | 'charcoal' | 'crude_oil_extract' | 'slag' | 'sawdust'
-  // Tier 3 - Industrial Materials
-  | 'steel' | 'steel_sheet' | 'steel_pipe' | 'copper_wire' | 'plastic' | 'rubber' | 'cement' | 'brick' | 'aluminum_ingot' | 'chemical_resin' | 'fuel_oil' | 'sulfuric_acid' | 'lead_ingot' | 'graphite'
-  // Tier 4 - Components
-  | 'gear' | 'bearing' | 'electric_motor' | 'magnetic_steel' | 'integrated_circuit' | 'pcb' | 'pipe_assembly' | 'gearbox' | 'control_unit' | 'battery' | 'solar_cell' | 'heat_exchanger'
-  | 'lubricant' | 'coolant' | 'spare_parts' | 'gold_filament'
-  // Tier 5 - Final Products
-  | 'factory_machine' | 'basic_electronics' | 'advanced_electronics' | 'food_ration' | 'medical_supply' | 'comfort_item' | 'building_block' | 'steel_frame' | 'reinforced_glass'
-  | 'basic_fuel_rod' | 'vehicle' | 'transport_truck' | 'basic_tool_set' | 'advanced_tool_set'
-  | 'coal_power_plant' | 'diesel_generator' | 'solar_power_array' | 'wind_turbine' | 'nuclear_reactor'
-  | 'basic_automation' | 'advanced_automation' | 'shipping_crate' | 'pallet'
-  // Energy & Utilities
-  | 'energy' | 'research'
-  // Legacy names for compatibility
-  | 'planks' | 'iron_bars' | 'concrete' | 'electronics' | 'concrete_mixer_unit' | 'steel_mill_unit' | 'electronics_factory_unit' | 'laboratory_unit' | 'power_plant_unit' | 'sawmill_unit' | 'foundry_unit' | 'logger_unit' | 'quarry_unit' | 'mine_unit';
+export type ResourceType = 'energy' | 'water' | 'food' | 'minerals' | 'tech' | 'luxury';
 
-export type TruckType = 'basic' | 'fast' | 'heavy';
-
-export interface Truck {
-  type: TruckType;
-  capacity: number;
-  speed: number; // multiplier
-  cost: number;
-}
-
-export interface Mission {
-  id: string;
-  name: string;
-  description: string;
-  objective: { type: 'produce' | 'accumulate' | 'research', resource: ResourceType, amount: number };
-  reward: number;
-  isCompleted: boolean;
-}
-
-export interface Campaign {
-  id: string;
-  name: string;
-  missions: Mission[];
-  currentMissionIndex: number;
-}
-
-export interface Resource {
-  type: ResourceType;
-  amount: number;
-  label: string;
-  icon: string;
-  color: string;
-  storageLimit: number;
-  storageLevel: number;
-}
-
-export interface ProductionUnit {
-  id: string;
-  name: string;
-  input: { type: ResourceType; amount: number }[];
-  output: { type: ResourceType; amount: number };
-  duration: number; // in seconds
-  isAutomated: boolean;
-  isProducing: boolean;
-  isPaused: boolean;
-  progress: number; // 0 to 100
-  lastStarted?: number;
-  level: number;
-  upgradeCost: number;
-  energyPerTick: number;
-  inputBuffer: Partial<Record<ResourceType, number>>;
-  outputBuffer: Partial<Record<ResourceType, number>>;
-  trucks: number;
-  currentEfficiency?: number;
-  condition: number; // 0-100, machine health (replaces population efficiency)
-  tier: number; // 1-5, determines maintenance requirements
-}
-
-export interface MarketItem {
-  type: ResourceType;
+export interface ResourceState {
+  resourceType: ResourceType;
+  stockGlobal: number;
+  stockLocal: number;
   price: number;
-  history: { price: number; timestamp: number }[];
-  volatility: number;
-  basePrice: number;
   demand: number;
   supply: number;
+  volatility: number;
+  trend: number;
+  lastPrices: number[];
+  state?: 'surplus' | 'scarcity' | 'stable';
 }
 
-export type Operator = '<' | '>' | '==';
-export type Action = 'buy' | 'sell' | 'produce';
-
-export interface AutomationCondition {
+export interface MarketOrder {
+  id: string;
+  username: string;
+  type: 'buy' | 'sell';
   resource: ResourceType;
-  operator: Operator;
-  value: number;
-  isMarketCondition?: boolean; // New field to indicate if it's a market price condition
+  amount: number;
+  price: number;
+  timestamp: number;
 }
 
-export interface Technology {
+export interface TradeHistory {
   id: string;
-  name: string;
-  description: string;
-  cost: number; // in research points
-  requirements: string[]; // ids of required technologies
-  unlocks: string[]; // ids of production units unlocked
-  icon: string;
+  buyerId: string;
+  sellerId: string;
+  resource: ResourceType;
+  amount: number;
+  price: number;
+  timestamp: number;
 }
 
-export interface AutomationRule {
+export interface Contract {
   id: string;
-  conditions: AutomationCondition[];
-  action: {
-    type: Action;
-    resource: ResourceType;
-    amount: number;
-  };
-  isEnabled: boolean;
-  isPaused: boolean;
+  resource: ResourceType;
+  totalAmount: number;
+  deliveredAmount: number;
+  totalValue: number;
+  pricePerUnit: number;
+  deadline: number;
+  status: 'active' | 'completed' | 'expired' | 'failed';
+  assignedPlayerId?: string;
+  paymentType: 'upfront' | 'per_delivery' | 'completion';
+  penalty?: number;
 }
 
 export interface User {
   username: string;
-  token: string;
-}
-
-export interface Order {
-  id: string;
-  type: 'buy' | 'sell';
-  resource: ResourceType;
-  amount: number;
-  price: number;
-  ownerId: string;
-  timestamp: number;
-}
-
-export interface TradeRecord {
-  id: string;
-  type: 'buy' | 'sell';
-  resource: ResourceType;
-  amount: number;
-  price: number;
-  timestamp: number;
-  isOrder?: boolean;
-}
-
-export interface ColonyContract {
-  id: string;
-  resource: ResourceType;
-  requiredAmount: number; // Amount colony needs per tick
-  currentAmount: number; // Amount delivered this period
-  rewardCredits: number; // Credits received for fulfilling
-  reputationImpact: number; // Reputation change on success/failure
-  period: number; // Ticks per period
-  isOptional: boolean; // Optional contracts (Tier 1-2)
-  isCritical: boolean; // Critical contracts (Tier 4-5)
+  money: number;
+  token?: string;
 }
 
 export interface GameState {
   user: User | null;
-  money: number;
-  dataPoints: number;  // Data Points - starts with 60 (50 Lab + 10 Stone)
-  resources: Record<ResourceType, number>;
-  storageLimits: Record<ResourceType, number>;
-  storageLevels: Record<ResourceType, number>;
-  productionUnits: ProductionUnit[];
-  market: Record<ResourceType, MarketItem>;
-  orderBook: Order[];
-  tradeHistory: TradeRecord[];
-  automationRules: AutomationRule[];
-  maxCompanies: number;
-  maxAutomations: number;
-  lastUpdate: number;
-  totalProfit: number;
-  profitHistory: number[];
-  notification?: string;
-  totalTrucks: number;
-  availableTrucks: number;
-  unlockedTechs: string[];
-  netFlow: Record<ResourceType, number>;
-  campaign: Campaign;
-  // Heat System
-  heatLevel: number;
-  maxHeat: number;
-  heatDissipationRate: number; // Heat dissipated per tick
-  // Colony System (replaces Population)
-  colonyReputation: number; // 0-100, affects market taxes
-  colonyContracts: ColonyContract[];
-  colonySupplyTier: number; // 1-5, current tier of contracts
-  // Logistics Fuel System
-  logisticsFuelConsumption: number; // Fuel/energy consumed per tick
-  // Buildings
-  buildings: Building[];
-  // Maintenance - machine condition (replaces population efficiency)
-  machineCondition: Record<string, number>; // unitId -> 0-100 condition
-}
-
-// Building Types
-export type BuildingType = 'house' | 'apartment' | 'luxury_housing' | 'hospital' | 'warehouse' | 'research_lab';
-
-export interface Building {
-  id: string;
-  type: BuildingType;
-  name: string;
-  level: number;
-  populationCapacity: number; // Legacy - kept for backward compatibility
-  happinessBonus: number;
-  resourceConsumption: Record<ResourceType, number>;
-  cost: number;
-  upgradeCost: number;
-  // New colony system fields
-  colonySupplyCapacity?: number; // How much colony supply this building can produce
-}
-
-// Route-Based Logistics
-export type RouteStatus = 'active' | 'paused' | 'completed';
-export type Priority = 'low' | 'medium' | 'high' | 'critical';
-
-export interface LogisticsRoute {
-  id: string;
-  name: string;
-  originType: 'warehouse' | 'producer';
-  originId: string;
-  destinationType: 'warehouse' | 'producer' | 'market';
-  destinationId: string;
-  resourceType: ResourceType;
-  amountPerTick: number;
-  trucksAllocated: number;
-  priority: Priority;
-  status: RouteStatus;
-  efficiency: number; // 0-100%
-  currentLoad: number;
-  distance: number; // abstract distance unit
+  market: Record<ResourceType, ResourceState>;
+  orderBook: MarketOrder[];
+  tradeHistory: TradeHistory[];
+  contracts: Contract[];
+  inventory: Record<ResourceType, number>;
 }

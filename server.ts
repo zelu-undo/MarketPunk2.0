@@ -6,6 +6,8 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { createClient } from "@supabase/supabase-js";
 import { fileURLToPath } from "url";
+import { EconomicController } from "./src/systems/ecs.ts";
+import { RESOURCES } from "./src/constants.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,17 +49,22 @@ const users: any[] = []; // In-memory user store for demo
 let globalOrderBook: any[] = [];
 let globalTradeHistory: any[] = [];
 
-let marketState: any = {
-  wood: { price: 10, demand: 100, supply: 100, history: [] },
-  stone: { price: 15, demand: 100, supply: 100, history: [] },
-  iron: { price: 25, demand: 100, supply: 100, history: [] },
-  planks: { price: 40, demand: 100, supply: 100, history: [] },
-  iron_bars: { price: 120, demand: 100, supply: 100, history: [] },
-  energy: { price: 5, demand: 100, supply: 100, history: [] },
-  concrete: { price: 150, demand: 100, supply: 100, history: [] },
-  steel: { price: 300, demand: 100, supply: 100, history: [] },
-  electronics: { price: 500, demand: 100, supply: 100, history: [] },
-};
+// Initialize marketState with ALL resources from constants
+let marketState: any = {};
+Object.keys(RESOURCES).forEach(res => {
+  marketState[res] = { price: 10, demand: 100, supply: 100, history: [] };
+});
+
+// Set some initial prices for common resources
+if (marketState.wood) marketState.wood.price = 10;
+if (marketState.stone) marketState.stone.price = 15;
+if (marketState.iron) marketState.iron.price = 25;
+if (marketState.planks) marketState.planks.price = 40;
+if (marketState.iron_bars) marketState.iron_bars.price = 120;
+if (marketState.energy) marketState.energy.price = 5;
+if (marketState.concrete) marketState.concrete.price = 150;
+if (marketState.steel) marketState.steel.price = 300;
+if (marketState.electronics) marketState.electronics.price = 500;
 
 // Initialize market from Supabase if keys are present
 async function initMarket() {
@@ -77,12 +84,8 @@ async function initMarket() {
 }
 initMarket();
 
-// Initialize history
-Object.keys(marketState).forEach(key => {
-  for (let i = 0; i < 20; i++) {
-    marketState[key].history.push({ price: marketState[key].price, timestamp: Date.now() - (20 - i) * 1000 });
-  }
-});
+// Initialize ECS
+const ecs = new EconomicController(Object.keys(marketState) as any[]);
 
 // Auth Routes
 app.post("/api/auth/register", async (req, res) => {
@@ -154,8 +157,18 @@ app.post("/api/auth/logout", (req, res) => {
 
 // Market Routes
 app.get("/api/market", (req, res) => {
+  // Merge ecs state into market state
+  const enrichedMarketState: any = {};
+  for (const [key, value] of Object.entries(marketState)) {
+    const ecsState = ecs.resources.get(key as any);
+    enrichedMarketState[key] = {
+      ...value as any,
+      ecsState: ecsState?.state || 'balanced'
+    };
+  }
+
   res.json({
-    market: marketState,
+    market: enrichedMarketState,
     orderBook: globalOrderBook,
     tradeHistory: globalTradeHistory.slice(0, 50)
   });
@@ -171,15 +184,15 @@ app.post("/api/market/order", (req, res) => {
     const { resource, type, amount, price } = req.body;
 
     if (!marketState[resource]) return res.status(400).json({ error: "Invalid resource" });
-    if (amount <= 0 || price <= 0) return res.status(400).json({ error: "Invalid amount or price" });
+    if (isNaN(amount) || isNaN(price) || amount <= 0 || price <= 0) return res.status(400).json({ error: "Invalid amount or price" });
 
     const order = {
       id: Math.random().toString(36).substr(2, 9),
       username: decoded.username,
       type: type, // 'buy' or 'sell'
       resource: resource,
-      amount,
-      price,
+      amount: Math.floor(amount),
+      price: Math.round(price),
       timestamp: Date.now()
     };
 
@@ -225,6 +238,122 @@ app.get("/api/market/user-trades", (req, res) => {
   }
 });
 
+app.get("/api/market/contracts", (req, res) => {
+  const activeContracts = Array.from(ecs.contracts.values()).filter(c => c.status === 'active');
+  res.json(activeContracts);
+});
+
+app.post("/api/market/contracts/:id/accept", (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+  
+  try {
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const contractId = req.params.id;
+    
+    const contract = ecs.contracts.get(contractId);
+    if (!contract) return res.status(404).json({ error: "Contract not found" });
+    if (contract.status !== 'active') return res.status(400).json({ error: "Contract is not active" });
+    if (contract.assignedPlayerId) return res.status(400).json({ error: "Contract already assigned" });
+    
+    // Check if player has too many contracts
+    const playerContracts = Array.from(ecs.contracts.values()).filter(c => c.assignedPlayerId === decoded.username && (c.status === 'active' || c.status === 'completed'));
+    if (playerContracts.length >= ecs.config.maxContractsPerPlayer) {
+      return res.status(400).json({ error: "Maximum contracts reached" });
+    }
+
+    contract.assignedPlayerId = decoded.username;
+    
+    let payment = 0;
+    if (contract.paymentType === 'upfront') {
+      payment = contract.totalValue * 0.8; // 80% upfront
+    }
+
+    if (payment > 0 && supabase) {
+      supabase.from('users')
+        .select('money')
+        .eq('username', decoded.username)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            supabase.from('users')
+              .update({ money: data.money + payment })
+              .eq('username', decoded.username)
+              .then(({ error }) => {
+                if (error) console.error('Failed to pay player upfront:', error);
+              });
+          }
+        });
+    }
+
+    res.json({ success: true, contract, payment });
+  } catch (e) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
+
+app.post("/api/market/contracts/:id/deliver", (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ message: "Unauthorized" });
+  
+  try {
+    const token = authHeader.split(" ")[1];
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
+    const contractId = req.params.id;
+    const { amount } = req.body;
+    
+    const contract = ecs.contracts.get(contractId);
+    if (!contract) return res.status(404).json({ error: "Contract not found" });
+    if (contract.status !== 'active') return res.status(400).json({ error: "Contract is not active" });
+    if (contract.assignedPlayerId !== decoded.username) return res.status(403).json({ error: "Contract not assigned to you" });
+    
+    if (amount <= 0) return res.status(400).json({ error: "Invalid amount" });
+
+    const remainingNeeded = contract.totalAmount - contract.deliveredAmount;
+    const actualAmount = Math.min(amount, remainingNeeded);
+    
+    if (actualAmount <= 0) return res.status(400).json({ error: "Contract already fulfilled or invalid amount" });
+
+    // In a real implementation, we would deduct the resources from the player's inventory here.
+    // For now, we just update the contract.
+    contract.deliveredAmount += actualAmount;
+    
+    let payment = 0;
+    if (contract.paymentType === 'per_delivery') {
+      payment = actualAmount * contract.pricePerUnit;
+    }
+
+    if (contract.deliveredAmount >= contract.totalAmount) {
+      contract.status = 'completed';
+      if (contract.paymentType === 'completion') {
+        payment = contract.totalValue * 1.15; // 15% bonus
+      }
+    }
+    
+    if (payment > 0 && supabase) {
+      supabase.from('users')
+        .select('money')
+        .eq('username', decoded.username)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            supabase.from('users')
+              .update({ money: data.money + payment })
+              .eq('username', decoded.username)
+              .then(({ error }) => {
+                if (error) console.error('Failed to pay player:', error);
+              });
+          }
+        });
+    }
+
+    res.json({ success: true, contract, payment });
+  } catch (e) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
+
 app.get("/api/leaderboard", async (req, res) => {
   try {
     // Get real users from Supabase
@@ -234,77 +363,28 @@ app.get("/api/leaderboard", async (req, res) => {
       if (data) users = data;
     }
 
-    // Generate bot stats - update their profits based on their strategy success
-    const botStats = BOTS.map(bot => {
-      // Bots gain profits over time based on their level and strategy
-      const baseProfit = bot.level * 100 + Math.random() * bot.level * 50;
-      const strategyBonus = bot.strategy === 'sell_high' ? 1.2 : bot.strategy === 'buy_low' ? 1.1 : 1.0;
-      const realisticProfit = Math.floor(baseProfit * strategyBonus);
-      
-      return {
-        username: bot.name,
-        money: bot.money,
-        total_profit: realisticProfit
-      };
-    });
+    // Generate NPC Contracts stats (or just ECS stats)
+    const ecsStats = Array.from(ecs.contracts.values()).slice(0, 10).map(c => ({
+      username: `Contract_${c.id.substring(0, 5)}`,
+      money: c.totalValue,
+      total_profit: c.deliveredAmount * c.pricePerUnit
+    }));
 
-    const allPlayers = [...users, ...botStats];
+    const allPlayers = [...users, ...ecsStats];
     
     // Sort by total profit (or money as fallback)
     allPlayers.sort((a, b) => (b.total_profit || b.money || 0) - (a.total_profit || a.money || 0));
 
-    // If no users, just use bots
-    const finalPlayers = users.length > 0 ? allPlayers : botStats;
+    // If no users, just use ECS stats
+    const finalPlayers = users.length > 0 ? allPlayers : ecsStats;
 
     res.json(finalPlayers.slice(0, 50));
   } catch (e) {
-    // Fallback to just bots with realistic profits
-    const botStats = BOTS.map(bot => {
-      const baseProfit = bot.level * 100 + Math.random() * bot.level * 50;
-      const strategyBonus = bot.strategy === 'sell_high' ? 1.2 : bot.strategy === 'buy_low' ? 1.1 : 1.0;
-      const realisticProfit = Math.floor(baseProfit * strategyBonus);
-      
-      return {
-        username: bot.name,
-        money: bot.money,
-        total_profit: realisticProfit
-      };
-    }).sort((a, b) => (b.total_profit || b.money || 0) - (a.total_profit || a.money || 0));
-    
-    res.json(botStats.slice(0, 50));
+    res.json([]);
   }
 });
 
-// Market Simulation & Bots
-interface Bot {
-  name: string;
-  strategy: string;
-  target: string;
-  money: number;
-  total_profit: number;
-  level: number;
-  resources: Record<string, number>;
-  internalState?: {
-    lastAction: number;
-    riskTolerance: number;
-    lastPrice: Record<string, number>;
-    inventory: Record<string, number>;
-    needsResources: string[];
-  };
-}
 
-const BOTS: Bot[] = [
-  { name: "BotMiner1", strategy: "buy_low", target: "energy", money: 250000, total_profit: 0, level: 35, resources: {} },
-  { name: "BotLumber2", strategy: "sell_high", target: "wood", money: 150000, total_profit: 0, level: 25, resources: {} },
-  { name: "BotTrader3", strategy: "random", target: "planks", money: 300000, total_profit: 0, level: 40, resources: {} },
-  { name: "BotIron4", strategy: "buy_low", target: "iron", money: 200000, total_profit: 0, level: 30, resources: {} },
-  { name: "BotFoundry5", strategy: "sell_high", target: "iron_bars", money: 400000, total_profit: 0, level: 45, resources: {} },
-  { name: "BotStone6", strategy: "sell_high", target: "stone", money: 180000, total_profit: 0, level: 28, resources: {} },
-  { name: "BotBuilder7", strategy: "buy_low", target: "concrete", money: 500000, total_profit: 0, level: 50, resources: {} },
-  { name: "BotSteel8", strategy: "random", target: "steel", money: 600000, total_profit: 0, level: 55, resources: {} },
-  { name: "BotTech9", strategy: "sell_high", target: "electronics", money: 800000, total_profit: 0, level: 60, resources: {} },
-  { name: "BotEnergy10", strategy: "sell_high", target: "energy", money: 350000, total_profit: 0, level: 42, resources: {} },
-];
 
 setInterval(() => {
   // 1. Order Matching Engine
@@ -324,8 +404,8 @@ setInterval(() => {
 
       if (bestBuy.price >= bestSell.price) {
         // Match found!
-        const tradePrice = (bestBuy.price + bestSell.price) / 2;
-        const tradeAmount = Math.min(bestBuy.amount, bestSell.amount);
+        const tradePrice = Math.round((bestBuy.price + bestSell.price) / 2);
+        const tradeAmount = Math.max(1, Math.min(Math.floor(bestBuy.amount), Math.floor(bestSell.amount)));
 
         // Execute trade
         const trade = {
@@ -346,18 +426,7 @@ setInterval(() => {
         marketState[resource].history.push({ price: tradePrice, timestamp: Date.now() });
         if (marketState[resource].history.length > 100) marketState[resource].history.shift();
 
-        // Update bot stats if they are involved
-        const buyerBot = BOTS.find(b => b.name === bestBuy.username);
-        if (buyerBot) {
-          buyerBot.money -= tradeAmount * tradePrice;
-          buyerBot.resources[resource] = (buyerBot.resources[resource] || 0) + tradeAmount;
-        }
-        
-        const sellerBot = BOTS.find(b => b.name === bestSell.username);
-        if (sellerBot) {
-          sellerBot.money += tradeAmount * tradePrice;
-          sellerBot.total_profit += tradeAmount * tradePrice;
-        }
+
 
         // Update orders
         bestBuy.amount -= tradeAmount;
@@ -379,151 +448,37 @@ setInterval(() => {
     }
   });
 
-  // 2. Bot actions - Realistic human-like behavior
+// ECS Tick
+  ecs.tick(activeUsers, marketState, globalOrderBook);
+
+  // Process expired contracts
   const now = Date.now();
-  
-  BOTS.forEach(bot => {
-    // Initialize bot's internal state if not exists
-    if (!bot.internalState) {
-      bot.internalState = {
-        lastAction: 0,
-        riskTolerance: 0.5 + Math.random() * 0.4,
-        lastPrice: {},
-        inventory: {},
-        needsResources: ['energy', 'food_ration', 'wood']
-      };
-    }
-    
-    const state = bot.internalState;
-    
-    // 1. REALISTIC PRODUCTION - Not all bots produce every tick
-    if (now - state.lastAction > 2000) {
-      const productionMultiplier = state.riskTolerance * (0.7 + Math.random() * 0.6);
-      const productionAmount = Math.floor(bot.level * 5 * productionMultiplier);
-      
-      // Some bots hold inventory instead of selling immediately
-      const holdPercentage = 0.2 + Math.random() * 0.3;
-      const sellAmount = Math.floor(productionAmount * (1 - holdPercentage));
-      const holdAmount = productionAmount - sellAmount;
-      
-      bot.resources[bot.target] = (bot.resources[bot.target] || 0) + holdAmount;
-      
-      if (sellAmount > 0) {
-        const item = marketState[bot.target];
-        let priceMultiplier;
-        
-        if (bot.strategy === 'sell_high') {
-          priceMultiplier = Math.random() < 0.3 ? 1.1 + Math.random() * 0.3 : 0.95 + Math.random() * 0.1;
-        } else if (bot.strategy === 'buy_low') {
-          priceMultiplier = 0.8 + Math.random() * 0.15;
-        } else {
-          priceMultiplier = 0.9 + Math.random() * 0.2;
-        }
-        
-        const sellPrice = item.price * priceMultiplier;
-        
-        globalOrderBook.push({
-          id: 'bot-' + Math.random().toString(36).substr(2, 5),
-          username: bot.name,
-          type: 'sell',
-          resource: bot.target,
-          amount: sellAmount,
-          price: parseFloat(sellPrice.toFixed(2)),
-          timestamp: now
-        });
-      }
-    }
-
-    // 2. HUMAN-LIKE UPGRADE BEHAVIOR
-    const upgradeCost = bot.level * 5000;
-    const moneyRatio = bot.money / (upgradeCost * 3);
-    
-    if (moneyRatio > 1 && Math.random() < 0.3) {
-      bot.money -= upgradeCost;
-      bot.level++;
-    }
-
-    // 3. VARIABLE MARKET ACTIVITY
-    const activityChance = 0.25 + (Math.sin(now / 60000) * 0.15);
-    const isActive = Math.random() < activityChance;
-    
-    if (isActive && bot.money > 3000) {
-      const type = bot.target;
-      const item = marketState[type];
-      
-      if (!state.lastPrice[type]) state.lastPrice[type] = item.price;
-      const priceChange = (item.price - state.lastPrice[type]) / state.lastPrice[type];
-      state.lastPrice[type] = item.price;
-
-      let willBuy = true;
-      if (priceChange > 0.1 && Math.random() < 0.4) {
-        willBuy = false;
-      }
-      
-      if (willBuy) {
-        const resources = Object.keys(marketState);
-        const buyTarget = state.needsResources[Math.floor(Math.random() * state.needsResources.length)] || 
-                         resources[Math.floor(Math.random() * resources.length)];
-        const buyItem = marketState[buyTarget];
-        
-        let priceBias;
-        if (bot.strategy === 'sell_high') priceBias = 1.02;
-        else if (bot.strategy === 'buy_low') priceBias = 0.98;
-        else priceBias = 0.95 + Math.random() * 0.1;
-        
-        const buyPrice = buyItem.price * priceBias;
-        
-        const spendPercent = 0.05 + Math.random() * 0.15;
-        const spendAmount = bot.money * spendPercent;
-        const buyAmount = Math.floor(Math.min(spendAmount / buyPrice, buyItem.supply));
-        
-        if (buyAmount > 0) {
-          globalOrderBook.push({
-            id: 'bot-' + Math.random().toString(36).substr(2, 5),
-            username: bot.name,
-            type: 'buy',
-            resource: buyTarget,
-            amount: buyAmount,
-            price: parseFloat(buyPrice.toFixed(2)),
-            timestamp: now
-          });
-          
-          state.inventory[buyTarget] = (state.inventory[buyTarget] || 0) + buyAmount;
-          
-          if (Math.random() < 0.1) {
-            const neededIdx = Math.floor(Math.random() * state.needsResources.length);
-            if (state.inventory[state.needsResources[neededIdx]] > 10) {
-              state.needsResources.splice(neededIdx, 1);
-              state.needsResources.push(resources[Math.floor(Math.random() * resources.length)]);
+  for (const [id, contract] of ecs.contracts.entries()) {
+    if (contract.status === 'expired' && contract.assignedPlayerId) {
+      // Deduct penalty from player
+      if (supabase) {
+        supabase.from('users')
+          .select('money')
+          .eq('username', contract.assignedPlayerId)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              supabase.from('users')
+                .update({ money: data.money - contract.penalty })
+                .eq('username', contract.assignedPlayerId)
+                .then(({ error }) => {
+                  if (error) console.error('Failed to deduct penalty:', error);
+                });
             }
-          }
-        }
+          });
       }
-      
-      state.lastAction = now;
+      contract.status = 'failed'; // Mark as failed so we don't process it again
     }
-    
-    // 4. OCCASIONAL MISTAKES
-    if (Math.random() < 0.02 && bot.money > 10000) {
-      const item = marketState[bot.target];
-      globalOrderBook.push({
-        id: 'bot-' + Math.random().toString(36).substr(2, 5),
-        username: bot.name,
-        type: 'sell',
-        resource: bot.target,
-        amount: Math.floor(Math.random() * 50) + 10,
-        price: item.price * 0.5,
-        timestamp: now
-      });
-    }
-    
-    // 5. Track profits for leaderboard
-    bot.total_profit = (bot.total_profit || 0) + Math.floor(Math.random() * bot.level * 10);
-  });
+  }
 
-  // Cleanup old bot orders to prevent book bloat
+  // Cleanup old NPC orders to prevent book bloat
   if (globalOrderBook.length > 500) {
-    globalOrderBook = globalOrderBook.filter(o => !o.username.startsWith('Bot') || (Date.now() - o.timestamp < 60000));
+    globalOrderBook = globalOrderBook.filter(o => !o.username.startsWith('NPC_') || (Date.now() - o.timestamp < 60000));
   }
 
   // Sync to Supabase periodically
@@ -552,11 +507,38 @@ export default app;
 const distPath = process.env.VERCEL 
   ? path.join(process.cwd(), "dist") 
   : path.join(__dirname, "dist");
-app.use(express.static(distPath));
 
-app.get("*", (req, res) => {
-  if (req.url.startsWith('/api')) {
-    return res.status(404).json({ error: "API route not found" });
+if (process.env.VERCEL) {
+  app.use(express.static(distPath));
+  app.get("*", (req, res) => {
+    if (req.url.startsWith('/api')) {
+      return res.status(404).json({ error: "API route not found" });
+    }
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+}
+
+if (!process.env.VERCEL) {
+  async function startServer() {
+    if (process.env.NODE_ENV !== 'production') {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        if (req.url.startsWith('/api')) {
+          return res.status(404).json({ error: "API route not found" });
+        }
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
   }
-  res.sendFile(path.join(distPath, "index.html"));
-});
+  startServer();
+}
