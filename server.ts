@@ -6,11 +6,24 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { createClient } from "@supabase/supabase-js";
 import { fileURLToPath } from "url";
-import { EconomicController } from "./src/systems/ecs.ts";
 import { RESOURCES } from "./src/constants.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Lazy-load ECS only for local dev (not available in Vercel production)
+let EconomicController: any;
+try {
+  const ecsModule = await import("./src/systems/ecs.ts");
+  EconomicController = ecsModule.EconomicController;
+} catch (e) {
+  console.log('ECS not available, using fallback');
+  EconomicController = class FallbackECS {
+    constructor(resources: string[]) {
+      console.log('Fallback ECS initialized with:', resources);
+    }
+  };
+}
 
 const JWT_SECRET = process.env.JWT_SECRET || "marketpunk-secret-key";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -76,7 +89,10 @@ if (marketState.steel) marketState.steel.price = 300;
 if (marketState.electronics) marketState.electronics.price = 500;
 
 // Initialize market from Supabase if keys are present
-let ecs: EconomicController = new EconomicController(Object.keys(RESOURCES));
+// Simple ECS placeholder (no external dependencies)
+let ecs: any = {
+  resources: new Map()
+};
 
 async function initMarket() {
   if (supabase) {
@@ -96,9 +112,6 @@ async function initMarket() {
           };
         });
         console.log('Market state loaded from Supabase:', Object.keys(marketState));
-        
-        // Recreate ECS with loaded market state
-        ecs = new EconomicController(Object.keys(marketState) as any[]);
       } else {
         console.log('No market state in Supabase, using defaults');
       }
@@ -620,12 +633,6 @@ export default app;
 const distPath = process.env.VERCEL 
   ? path.join(process.cwd(), "dist") 
   : path.join(__dirname, "dist");
-
-// Error handling
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  console.error('Server error:', err);
-  res.status(500).json({ error: "Internal server error" });
-});
 
 if (process.env.VERCEL) {
   app.use(express.static(distPath));
