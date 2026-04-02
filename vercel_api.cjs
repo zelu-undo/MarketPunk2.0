@@ -14,11 +14,10 @@ app.use(express.json());
 const JWT_SECRET = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET || "marketpunk-secret-key";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 let supabase = null;
-if (SUPABASE_URL && (SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY)) {
-  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY || SUPABASE_ANON_KEY);
+if (SUPABASE_URL && SUPABASE_SERVICE_KEY) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
   console.log('Supabase connected!');
 }
 
@@ -55,33 +54,34 @@ app.post('/api/auth/register', async (req, res) => {
     return res.status(400).json({ message: "Password must be at least 3 characters" });
   }
   
-  // Create user in Supabase Auth (using username as fake email)
+  // Store in Supabase table
   if (supabase) {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: username + '@marketpunk.local',
-        password: password,
-        options: {
-          data: { username: username },
-          emailRedirectTo: 'https://market-punk2-0.vercel.app'
-        }
-      });
+      // Check if exists
+      const { data: existing } = await supabase
+        .from('user_credentials')
+        .select('username')
+        .eq('username', username)
+        .single();
       
-      if (error) {
-        if (error.message.includes('already registered')) {
-          return res.status(400).json({ message: "User already exists" });
-        }
-        console.log('Supabase signUp error:', error.message);
+      if (existing) {
+        return res.status(400).json({ message: "User already exists" });
       }
       
-      // If email confirmation needed, still create local token
-      console.log('Created user:', username, 'needs confirmation:', data?.user?.email_confirmed_at ? 'no' : 'yes');
+      // Hash password and save
+      const hashed = bcrypt.hashSync(password, 10);
+      await supabase.from('user_credentials').insert({
+        username,
+        password_hash: hashed
+      });
+      
+      console.log('Created user in Supabase:', username);
     } catch (e) {
       console.log('Supabase error:', e.message);
+      return res.status(500).json({ message: "Database error" });
     }
   }
   
-  // Always generate token (works even if Supabase needs email confirmation)
   const token = jwt.sign({ username, created: Date.now() }, JWT_SECRET, { expiresIn: '30d' });
   res.json({ username, token, money: 1000 });
 });
@@ -89,28 +89,32 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   
-  // Always verify with local token approach
-  // Try both Supabase Auth and local check
+  let passwordHash = null;
+  
+  // Get from Supabase
   if (supabase) {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: username + '@marketpunk.local',
-        password: password
-      });
+      const { data: user } = await supabase
+        .from('user_credentials')
+        .select('password_hash')
+        .eq('username', username)
+        .single();
       
-      if (!error && data.user) {
-        const token = jwt.sign({ username, id: data.user.id, created: Date.now() }, JWT_SECRET, { expiresIn: '30d' });
-        return res.json({ username, money: 1000, token });
+      if (user) {
+        passwordHash = user.password_hash;
       }
     } catch (e) {
-      // Continue to fallback
+      console.log('Supabase lookup:', e.message);
     }
   }
   
-  // Fallback: check if registration happened in this session
-  // For now, accept any valid login (Supabase will persist for next requests)
-  // The Supabase Auth already verified - if we get here, there was an error
-  return res.status(401).json({ message: "Invalid credentials. Try registering first." });
+  // Verify
+  if (!passwordHash || !bcrypt.compareSync(password, passwordHash)) {
+    return res.status(401).json({ message: "Invalid credentials" });
+  }
+  
+  const token = jwt.sign({ username, created: Date.now() }, JWT_SECRET, { expiresIn: '30d' });
+  res.json({ username, money: 1000, token });
 });
 
 // Serve static files
