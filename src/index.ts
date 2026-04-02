@@ -11,10 +11,34 @@ import { RESOURCES } from "./constants.ts";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Simple ECS placeholder (no external dependencies for Vercel compatibility)
+// Complete ECS fallback for Vercel (no external dependencies)
 class FallbackECS {
-  constructor(resources: string[]) {
-    console.log(' ECS initialized with:', resources);
+  resources = new Map();
+  contracts = new Map();
+  config = { maxContractsPerPlayer: 5, npcLiquidity: 100, minPrice: 1 };
+  
+  constructor(resourceTypes: string[]) {
+    console.log(' ECS initialized with:', resourceTypes);
+    resourceTypes.forEach(type => {
+      this.resources.set(type, {
+        resourceType: type,
+        stockGlobal: 1000, stockLocal: 100, price: 100,
+        demand: 50, supply: 50, volatility: 0.1, trend: 0,
+        lastPrices: [100, 100, 100, 100, 100], state: 'stable'
+      });
+    });
+  }
+  
+  tick(marketState: any, orderBook: any[], tradeHistory: any[]) {
+    this.resources.forEach((resource: any) => {
+      const change = (Math.random() - 0.5) * resource.volatility * resource.price;
+      resource.price = Math.max(this.config.minPrice, Math.round(resource.price + change));
+      resource.lastPrices.push(resource.price);
+      if (resource.lastPrices.length > 20) resource.lastPrices.shift();
+      if (marketState[resource.resourceType]) {
+        marketState[resource.resourceType].price = resource.price;
+      }
+    });
   }
 }
 const EconomicController = FallbackECS;
