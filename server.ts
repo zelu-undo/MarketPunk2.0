@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import cors from "cors";
@@ -620,6 +620,12 @@ export default app;
 const distPath = process.env.VERCEL 
   ? path.join(process.cwd(), "dist") 
   : path.join(__dirname, "dist");
+
+// Error handling
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: "Internal server error" });
+});
 
 if (process.env.VERCEL) {
   app.use(express.static(distPath));
