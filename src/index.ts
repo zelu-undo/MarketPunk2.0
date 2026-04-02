@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from "express";
+import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import cors from "cors";
@@ -6,24 +6,18 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { createClient } from "@supabase/supabase-js";
 import { fileURLToPath } from "url";
-import { RESOURCES } from "./src/constants.ts";
+import { RESOURCES } from "./constants.ts";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Lazy-load ECS only for local dev (not available in Vercel production)
-let EconomicController: any;
-try {
-  const ecsModule = await import("./src/systems/ecs.ts");
-  EconomicController = ecsModule.EconomicController;
-} catch (e) {
-  console.log('ECS not available, using fallback');
-  EconomicController = class FallbackECS {
-    constructor(resources: string[]) {
-      console.log('Fallback ECS initialized with:', resources);
-    }
-  };
+// Simple ECS placeholder (no external dependencies for Vercel compatibility)
+class FallbackECS {
+  constructor(resources: string[]) {
+    console.log(' ECS initialized with:', resources);
+  }
 }
+const EconomicController = FallbackECS;
 
 const JWT_SECRET = process.env.JWT_SECRET || "marketpunk-secret-key";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
