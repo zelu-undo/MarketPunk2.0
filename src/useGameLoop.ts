@@ -19,23 +19,23 @@ import {
   HEAT_EXCHANGER_BONUS,
   OVERHEAT_THRESHOLD,
   CRITICAL_HEAT_THRESHOLD,
-  // Population constants
-  INITIAL_POPULATION,
-  BASE_POPULATION_GROWTH,
-  POPULATION_DECAY,
-  FOOD_CONSUMPTION_RATE,
-  COMFORT_CONSUMPTION_RATE,
-  MEDICAL_CONSUMPTION_RATE,
-  ENERGY_CONSUMPTION_RATE,
-  HAPPINESS_DECAY,
-  HAPPINESS_RECOVERY,
-  HAPPINESS_WARNING_THRESHOLD,
-  HAPPINESS_CRITICAL_THRESHOLD,
-  POPULATION_EFFICIENCY_BONUS,
-  POPULATION_EFFICIENCY_PENALTY,
-  HAPPINESS_TAX_BONUS,
-  WORKERS_PER_FACTORY,
-  BASE_TAX_RATE,
+  // Colony System constants (replaces Population)
+  INITIAL_COLONY_REPUTATION,
+  MAX_COLONY_REPUTATION,
+  MIN_COLONY_REPUTATION,
+  REPUTATION_TAX_IMPACT,
+  COLONY_CONTRACT_TIERS,
+  COLONY_CONTRACT_PERIOD,
+  CONTRACT_REWARD_MULTIPLIER,
+  // Machine Maintenance constants
+  INITIAL_MACHINE_CONDITION,
+  MAX_MACHINE_CONDITION,
+  MIN_MACHINE_CONDITION,
+  CONDITION_DECAY_BY_TIER,
+  MAINTENANCE_CONSUMPTION,
+  CONDITION_RECOVERY,
+  // Logistics Fuel constants
+  BASE_FUEL_CONSUMPTION,
   BUILDINGS,
 } from './constants';
 
@@ -171,15 +171,16 @@ function getInitialState(user: User | null): GameState {
     heatLevel: 0,
     maxHeat: 1000,
     heatDissipationRate: 10,
-    // Population System
-    population: 10,
-    populationHappiness: 100,
-    populationGrowthRate: 1,
-    populationEfficiency: 1.0,
+    // Colony System (replaces Population)
+    colonyReputation: 50,
+    colonyContracts: [],
+    colonySupplyTier: 1,
+    // Logistics Fuel System
+    logisticsFuelConsumption: 0,
     // Buildings
     buildings: [],
-    // Maintenance
-    maintenanceItems: {},
+    // Machine Condition (replaces population efficiency)
+    machineCondition: {},
   };
 }
 
@@ -211,6 +212,8 @@ export function useGameLoop() {
             isAutomated: !!u.isAutomated,
             isProducing: !!u.isProducing,
             progress: u.progress || 0,
+            condition: typeof u.condition === 'number' ? u.condition : 100, // Machine condition
+            tier: typeof u.tier === 'number' ? u.tier : 1, // Production tier
           }));
 
           return { 
@@ -234,12 +237,15 @@ export function useGameLoop() {
             heatLevel: typeof parsed.heatLevel === 'number' ? parsed.heatLevel : 0,
             maxHeat: typeof parsed.maxHeat === 'number' ? parsed.maxHeat : MAX_HEAT,
             heatDissipationRate: typeof parsed.heatDissipationRate === 'number' ? parsed.heatDissipationRate : BASE_HEAT_DISSIPATION,
-            population: typeof parsed.population === 'number' ? parsed.population : INITIAL_POPULATION,
-            populationHappiness: typeof parsed.populationHappiness === 'number' ? parsed.populationHappiness : 100,
-            populationGrowthRate: typeof parsed.populationGrowthRate === 'number' ? parsed.populationGrowthRate : 1,
-            populationEfficiency: typeof parsed.populationEfficiency === 'number' ? parsed.populationEfficiency : 1.0,
+            // Colony System (replaces Population)
+            colonyReputation: typeof parsed.colonyReputation === 'number' ? parsed.colonyReputation : 50,
+            colonyContracts: parsed.colonyContracts || [],
+            colonySupplyTier: typeof parsed.colonySupplyTier === 'number' ? parsed.colonySupplyTier : 1,
+            // Logistics Fuel
+            logisticsFuelConsumption: typeof parsed.logisticsFuelConsumption === 'number' ? parsed.logisticsFuelConsumption : 0,
+            // Machine Condition
+            machineCondition: parsed.machineCondition || {},
             buildings: parsed.buildings || [],
-            maintenanceItems: parsed.maintenanceItems || {},
           };
         } catch (e) {
           console.error('Failed to parse save', e);
@@ -485,7 +491,7 @@ export function useGameLoop() {
         return prev;
       }
 
-      // Calculate efficiency based on energy + population
+      // Calculate efficiency based on energy + machine condition
       const energyInput = unit.input.find(i => i.type === 'energy');
       let currentEfficiency = 1.0;
       let energyConsumed = 0;
@@ -499,9 +505,15 @@ export function useGameLoop() {
         else currentEfficiency = 0.2 + ratio * 0.8;
       }
       
-      // Apply population efficiency bonus/penalty
-      const popEfficiency = prev.populationEfficiency || 1.0;
-      currentEfficiency *= popEfficiency;
+      // Apply machine condition efficiency (replaces population efficiency)
+      const machineCondition = unit.condition || 100;
+      let conditionEfficiency = 1.0;
+      if (machineCondition >= 80) {
+        conditionEfficiency = 1.0 + (machineCondition - 80) * 0.001; // +0.1% per point above 80
+      } else if (machineCondition < 50) {
+        conditionEfficiency = 1.0 - (50 - machineCondition) * 0.005; // -0.5% per point below 50
+      }
+      currentEfficiency *= conditionEfficiency;
 
       const newUnits = prev.productionUnits.map(u => {
         if (u.id === unitId) {
@@ -939,99 +951,137 @@ export function useGameLoop() {
       const heatDecay = Math.min(nextState.heatLevel, HEAT_DECAY_RATE);
       nextState.heatLevel = Math.max(0, Math.min(nextState.maxHeat, nextState.heatLevel - heatDecay + heatGenerated));
 
-      // ===== POPULATION SYSTEM =====
-      // 1. Calculate total population capacity from buildings
-      const totalPopulationCapacity = nextState.buildings.reduce((sum, b) => sum + (BUILDINGS[b.type]?.populationCapacity || 0), 0);
-      const baseCapacity = 50; // Base capacity without buildings
+      // ===== COLONY SYSTEM (Replaces Population) =====
+      // 1. Determine colony tier based on highest tier production unit
+      const productionTiers = nextState.productionUnits.map(u => u.tier || 1);
+      const highestTier = Math.max(...productionTiers, 1);
+      nextState.colonySupplyTier = highestTier;
       
-      // 2. Calculate total needs based on population
-      const foodNeeded = Math.ceil(nextState.population * FOOD_CONSUMPTION_RATE);
-      const comfortNeeded = Math.ceil(nextState.population * COMFORT_CONSUMPTION_RATE);
-      const medicalNeeded = Math.ceil(nextState.population * MEDICAL_CONSUMPTION_RATE);
-      const energyNeeded = Math.ceil(nextState.population * ENERGY_CONSUMPTION_RATE);
+      // 2. Generate/Update colony contracts based on tier
+      const tierConfig = COLONY_CONTRACT_TIERS[highestTier] || COLONY_CONTRACT_TIERS[1];
       
-      // 3. Check if needs are met
-      const hasFood = (nextState.resources['food_ration'] || 0) >= foodNeeded;
-      const hasComfort = (nextState.resources['comfort_item'] || 0) >= comfortNeeded;
-      const hasMedical = (nextState.resources['medical_supply'] || 0) >= medicalNeeded;
-      const hasEnergy = (nextState.resources['energy'] || 0) >= energyNeeded;
-      const needsMet = hasFood && hasComfort && hasMedical && hasEnergy;
-      
-      // 4. Calculate satisfaction ratios (0 to 1)
-      const foodRatio = Math.min(1, (nextState.resources['food_ration'] || 0) / Math.max(1, foodNeeded));
-      const comfortRatio = Math.min(1, (nextState.resources['comfort_item'] || 0) / Math.max(1, comfortNeeded));
-      const medicalRatio = Math.min(1, (nextState.resources['medical_supply'] || 0) / Math.max(1, medicalNeeded));
-      
-      // Calculate base satisfaction from resource adequacy
-      const baseSatisfaction = (foodRatio + comfortRatio + medicalRatio) / 3;
-      
-      // Factor in population size - larger populations are harder to keep happy
-      // Using logarithmic scale: 10 pop = easy, 100 pop = moderate, 1000 pop = hardest
-      const populationDifficulty = Math.min(0.7, Math.log10(nextState.population + 10) / Math.log10(1010));
-      
-      // Add building happiness bonus to target (fixed values)
-      const buildingHappinessBonus = nextState.buildings.reduce((sum, b) => sum + (BUILDINGS[b.type]?.happinessBonus || 0), 0);
-
-      // Target happiness: more population = harder to maintain high happiness
-      // At 10 pop with full supplies: ~100% happiness
-      // At 100 pop with just enough: ~50% happiness
-      // At 1000 pop with just enough: ~30% happiness
-      const targetHappiness = Math.min(100, baseSatisfaction * 100 * (1 - populationDifficulty) + buildingHappinessBonus);
-      
-      // Smooth transition toward target happiness
-      if (nextState.populationHappiness < targetHappiness) {
-        nextState.populationHappiness = Math.min(targetHappiness, nextState.populationHappiness + HAPPINESS_RECOVERY);
-      } else {
-        nextState.populationHappiness = Math.max(targetHappiness, nextState.populationHappiness - HAPPINESS_DECAY);
+      // Initialize contracts if empty
+      if (nextState.colonyContracts.length === 0 && tierConfig.contractScale > 0) {
+        const allContracts = [...tierConfig.optionalContracts, ...tierConfig.requiredContracts];
+        nextState.colonyContracts = allContracts.map((c, idx) => ({
+          id: `contract_${idx}`,
+          resource: c.resource,
+          requiredAmount: Math.ceil(c.amount * tierConfig.contractScale),
+          currentAmount: 0,
+          rewardCredits: c.reward,
+          reputationImpact: c.reputation,
+          period: COLONY_CONTRACT_PERIOD,
+          isOptional: tierConfig.optionalContracts.includes(c),
+          isCritical: tierConfig.requiredContracts.includes(c),
+        }));
       }
       
-      // 5. Consume resources (SINK - keeps market alive!)
-      if (hasFood) {
-        nextState.resources['food_ration'] = (nextState.resources['food_ration'] || 0) - foodNeeded;
-      }
-      if (hasComfort) {
-        nextState.resources['comfort_item'] = (nextState.resources['comfort_item'] || 0) - comfortNeeded;
-      }
-      if (hasMedical) {
-        nextState.resources['medical_supply'] = (nextState.resources['medical_supply'] || 0) - medicalNeeded;
-      }
+      // 3. Process colony contracts (accumulate deliveries and check fulfillment)
+      let contractIncome = 0;
+      let reputationChange = 0;
       
-      // 6. Population growth - infinite based on building capacity
-      const maxPopulation = baseCapacity + totalPopulationCapacity;
-      // Population changes - use floor to prevent small floating point oscillations
-      const currentPop = Math.floor(nextState.population);
-      if (needsMet && nextState.populationHappiness > 70 && nextState.population < maxPopulation) {
-        // Only grow if there's enough sustained resources (at least 10 ticks worth)
-        const minSustainedResources = Math.max(10, Math.ceil(currentPop * FOOD_CONSUMPTION_RATE * 10));
-        const hasSustainedFood = (nextState.resources['food_ration'] || 0) >= minSustainedResources;
+      nextState.colonyContracts.forEach(contract => {
+        // Check if player has delivered resources to colony (simplified: auto-deliver from resources)
+        const availableResource = nextState.resources[contract.resource] || 0;
+        const deliveryAmount = Math.min(availableResource, contract.requiredAmount / contract.period);
         
-        if (hasSustainedFood) {
-          // Growth rate slows as approaching capacity
-          const spaceRemaining = maxPopulation - nextState.population;
-          const growthFactor = Math.min(1, spaceRemaining / 50);
-          nextState.population = Math.min(maxPopulation, nextState.population + BASE_POPULATION_GROWTH * growthFactor);
+        if (deliveryAmount > 0) {
+          nextState.resources[contract.resource] -= deliveryAmount;
+          contract.currentAmount += deliveryAmount;
         }
-      } else if (!hasFood) {
-        // Population decays - faster decay when resources are low
-        const decayAmount = Math.max(POPULATION_DECAY, Math.min(2, currentPop * 0.1));
-        nextState.population = Math.max(0, nextState.population - decayAmount);
+        
+        // Check if contract period complete
+        if (nextState.tickCount % contract.period === 0) {
+          const fulfillmentRatio = contract.currentAmount / contract.requiredAmount;
+          
+          if (fulfillmentRatio >= 1.0) {
+            // Full fulfillment - reward + bonus
+            contractIncome += contract.rewardCredits * CONTRACT_REWARD_MULTIPLIER;
+            reputationChange += contract.reputationImpact;
+          } else if (fulfillmentRatio >= 0.5) {
+            // Partial fulfillment
+            contractIncome += Math.floor(contract.rewardCredits * fulfillmentRatio);
+            reputationChange += Math.floor(contract.reputationImpact * fulfillmentRatio);
+          } else if (contract.isCritical) {
+            // Critical contract failed - big reputation hit
+            reputationChange += contract.reputationImpact;
+          }
+          
+          // Reset for next period
+          contract.currentAmount = 0;
+        }
+      });
+      
+      // 4. Update colony reputation
+      nextState.colonyReputation = Math.max(
+        MIN_COLONY_REPUTATION,
+        Math.min(MAX_COLONY_REPUTATION, nextState.colonyReputation + reputationChange)
+      );
+      
+      // 5. Add contract income
+      nextState.money += contractIncome;
+      
+      // 6. Calculate market tax rate based on reputation
+      const reputationBonus = Math.max(0, nextState.colonyReputation - 50) * REPUTATION_TAX_IMPACT;
+      // Tax is now optional - players can choose to fulfill contracts for reputation bonus
+
+      // ===== MACHINE MAINTENANCE SYSTEM (Replaces Population Efficiency) =====
+      // Process each production unit's condition
+      nextState.productionUnits.forEach(unit => {
+        const tier = unit.tier || 1;
+        const currentCondition = unit.condition || 100;
+        
+        // 1. Calculate condition decay based on tier
+        const decayRate = CONDITION_DECAY_BY_TIER[tier] || 0;
+        let newCondition = currentCondition - decayRate;
+        
+        // 2. Check for maintenance items and recover condition
+        const lubricantAmount = nextState.resources['lubricant'] || 0;
+        const coolantAmount = nextState.resources['coolant'] || 0;
+        const sparePartsAmount = nextState.resources['spare_parts'] || 0;
+        
+        // Consume maintenance items
+        const lubricantConsumption = MAINTENANCE_CONSUMPTION.lubricant[`tier${tier}` as keyof typeof MAINTENANCE_CONSUMPTION.lubricant] || 0;
+        const coolantConsumption = MAINTENANCE_CONSUMPTION.coolant[`tier${tier}` as keyof typeof MAINTENANCE_CONSUMPTION.coolant] || 0;
+        const sparePartsConsumption = MAINTENANCE_CONSUMPTION.spare_parts[`tier${tier}` as keyof typeof MAINTENANCE_CONSUMPTION.spare_parts] || 0;
+        
+        // Apply consumption and recovery
+        if (tier >= 2 && lubricantAmount >= lubricantConsumption) {
+          nextState.resources['lubricant'] -= lubricantConsumption;
+          newCondition = Math.min(MAX_MACHINE_CONDITION, newCondition + CONDITION_RECOVERY.withLubricant);
+        }
+        if (tier >= 3 && coolantAmount >= coolantConsumption) {
+          nextState.resources['coolant'] -= coolantConsumption;
+          newCondition = Math.min(MAX_MACHINE_CONDITION, newCondition + CONDITION_RECOVERY.withCoolant);
+        }
+        if (tier >= 4 && sparePartsAmount >= sparePartsConsumption) {
+          nextState.resources['spare_parts'] -= sparePartsConsumption;
+          newCondition = Math.min(MAX_MACHINE_CONDITION, newCondition + CONDITION_RECOVERY.withSpareParts);
+        }
+        
+        // Update machine condition in state
+        unit.condition = Math.max(MIN_MACHINE_CONDITION, newCondition);
+      });
+
+      // ===== LOGISTICS FUEL SYSTEM =====
+      // Calculate fuel consumption based on active trucks
+      const activeTrucks = nextState.productionUnits.reduce((sum, u) => sum + (u.trucks || 0), 0);
+      const fuelConsumption = activeTrucks * BASE_FUEL_CONSUMPTION;
+      
+      // Consume fuel from resources (Tier 1: no consumption)
+      if (fuelConsumption > 0) {
+        const fuelAvailable = Math.min(
+          nextState.resources['fuel_oil'] || 0,
+          nextState.resources['energy'] || 0,
+          fuelConsumption
+        );
+        if (nextState.resources['fuel_oil'] >= fuelAvailable) {
+          nextState.resources['fuel_oil'] -= fuelAvailable;
+        } else {
+          nextState.resources['energy'] -= fuelAvailable;
+        }
       }
-      
-      // 6. Calculate efficiency bonus/penalty (affects all production)
-      let populationEfficiency = 1.0;
-      if (needsMet && nextState.populationHappiness > 70) {
-        populationEfficiency = 1.0 + POPULATION_EFFICIENCY_BONUS; // +10% production
-      } else if (nextState.populationHappiness < HAPPINESS_CRITICAL_THRESHOLD) {
-        populationEfficiency = 1.0 - POPULATION_EFFICIENCY_PENALTY; // -30% production
-      }
-      
-      // 7. Generate tax income (credits from population)
-      const taxRate = BASE_TAX_RATE + (Math.max(0, nextState.populationHappiness - 70) * HAPPINESS_TAX_BONUS);
-      const taxIncome = Math.floor(nextState.population * taxRate);
-      nextState.money += taxIncome;
-      
-      // Store efficiency for production units to use
-      nextState.populationEfficiency = populationEfficiency;
+      nextState.logisticsFuelConsumption = fuelConsumption;
 
       // Handle Automation (Simplified for simulation)
       nextState.automationRules.forEach(rule => {

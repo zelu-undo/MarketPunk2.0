@@ -71,6 +71,8 @@ export interface ProductionUnit {
   outputBuffer: Partial<Record<ResourceType, number>>;
   trucks: number;
   currentEfficiency?: number;
+  condition: number; // 0-100, machine health (replaces population efficiency)
+  tier: number; // 1-5, determines maintenance requirements
 }
 
 export interface MarketItem {
@@ -140,6 +142,18 @@ export interface TradeRecord {
   isOrder?: boolean;
 }
 
+export interface ColonyContract {
+  id: string;
+  resource: ResourceType;
+  requiredAmount: number; // Amount colony needs per tick
+  currentAmount: number; // Amount delivered this period
+  rewardCredits: number; // Credits received for fulfilling
+  reputationImpact: number; // Reputation change on success/failure
+  period: number; // Ticks per period
+  isOptional: boolean; // Optional contracts (Tier 1-2)
+  isCritical: boolean; // Critical contracts (Tier 4-5)
+}
+
 export interface GameState {
   user: User | null;
   money: number;
@@ -167,15 +181,16 @@ export interface GameState {
   heatLevel: number;
   maxHeat: number;
   heatDissipationRate: number; // Heat dissipated per tick
-  // Population System
-  population: number;
-  populationHappiness: number;
-  populationGrowthRate: number;
-  populationEfficiency: number; // 1.0 = normal, 1.1 = +10%, 0.7 = -30%
+  // Colony System (replaces Population)
+  colonyReputation: number; // 0-100, affects market taxes
+  colonyContracts: ColonyContract[];
+  colonySupplyTier: number; // 1-5, current tier of contracts
+  // Logistics Fuel System
+  logisticsFuelConsumption: number; // Fuel/energy consumed per tick
   // Buildings
   buildings: Building[];
-  // Maintenance
-  maintenanceItems: Record<ResourceType, number>;
+  // Maintenance - machine condition (replaces population efficiency)
+  machineCondition: Record<string, number>; // unitId -> 0-100 condition
 }
 
 // Building Types
@@ -186,11 +201,13 @@ export interface Building {
   type: BuildingType;
   name: string;
   level: number;
-  populationCapacity: number;
+  populationCapacity: number; // Legacy - kept for backward compatibility
   happinessBonus: number;
   resourceConsumption: Record<ResourceType, number>;
   cost: number;
   upgradeCost: number;
+  // New colony system fields
+  colonySupplyCapacity?: number; // How much colony supply this building can produce
 }
 
 // Route-Based Logistics

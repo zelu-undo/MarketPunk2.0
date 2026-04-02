@@ -271,14 +271,14 @@ export default function App() {
               </span>
             </div>
             <div className="h-8 w-px bg-white/10 hidden sm:block" />
-            {/* Population Display */}
+            {/* Colony Reputation Display */}
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Population</span>
+              <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-semibold">Colony Rep</span>
               <span className={cn(
                 "text-lg font-mono font-bold",
-                state.populationHappiness < 50 ? "text-red-500" : state.populationHappiness < 70 ? "text-orange-400" : "text-emerald-400"
+                state.colonyReputation < 30 ? "text-red-500" : state.colonyReputation < 50 ? "text-orange-400" : "text-emerald-400"
               )}>
-                {Math.round(state.population)}
+                {Math.round(state.colonyReputation || 50)}%
               </span>
             </div>
             <div className="h-8 w-px bg-white/10 hidden sm:block" />
@@ -1020,7 +1020,7 @@ function BuildingsTab({ state, onBuild, onUpgrade, onDemolish, money }: { state:
               <p className="text-xs text-zinc-500 mb-2">{building.description}</p>
               <div className="flex items-center justify-between text-xs text-zinc-400 mb-3">
                 <span>Count: {count}</span>
-                <span>Cap: +{building.populationCapacity}</span>
+                <span>Supply: +{building.populationCapacity}</span>
               </div>
               <button
                 onClick={() => onBuild(type)}
@@ -1039,7 +1039,7 @@ function BuildingsTab({ state, onBuild, onUpgrade, onDemolish, money }: { state:
         <h3 className="font-bold text-lg">Your Buildings</h3>
         {(!state.buildings || state.buildings.length === 0) ? (
           <div className="text-center py-8 text-zinc-500 bg-white/5 rounded-2xl border border-white/5">
-            No buildings yet. Build some to grow your population!
+            No buildings yet. Build some to support your colony!
           </div>
         ) : (
           state.buildings.map((building: { id: string; type: BuildingType; level: number }) => (

@@ -243,16 +243,16 @@ export const PRODUCTION_RECIPES: Record<string, {
 };
 
 export const INITIAL_PRODUCTION_UNITS: ProductionUnit[] = [
-  { id: 'logger', name: 'Logger', input: [{ type: 'energy', amount: 1 }], output: { type: 'wood', amount: 2 }, duration: 5, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 200, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'quarry', name: 'Stone Quarry', input: [{ type: 'energy', amount: 2 }], output: { type: 'stone', amount: 2 }, duration: 8, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 300, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'mine', name: 'Iron Mine', input: [{ type: 'energy', amount: 2 }], output: { type: 'iron', amount: 2 }, duration: 10, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 400, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'power_plant', name: 'Power Plant', input: [{ type: 'wood', amount: 1 }], output: { type: 'energy', amount: 2 }, duration: 10, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 500, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'food_processor', name: 'Food Processor', input: [{ type: 'wood', amount: 2 }], output: { type: 'food_ration', amount: 3 }, duration: 5, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 200, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'sawmill', name: 'Sawmill', input: [{ type: 'wood', amount: 2 }, { type: 'energy', amount: 1 }], output: { type: 'planks', amount: 2 }, duration: 8, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 400, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'foundry', name: 'Foundry', input: [{ type: 'iron', amount: 2 }, { type: 'energy', amount: 2 }], output: { type: 'iron_bars', amount: 1 }, duration: 12, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 800, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'concrete_mixer', name: 'Concrete Mixer', input: [{ type: 'stone', amount: 2 }, { type: 'energy', amount: 2 }], output: { type: 'concrete', amount: 1 }, duration: 15, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 800, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  { id: 'electronics_factory', name: 'Electronics Factory', input: [{ type: 'iron_bars', amount: 1 }, { type: 'planks', amount: 1 }, { type: 'energy', amount: 4 }], output: { type: 'electronics', amount: 1 }, duration: 25, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 2000, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0 },
-  // Laboratory unlocked at 500 population (handled dynamically)
+  { id: 'logger', name: 'Logger', input: [{ type: 'energy', amount: 1 }], output: { type: 'wood', amount: 2 }, duration: 5, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 200, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 1 },
+  { id: 'quarry', name: 'Stone Quarry', input: [{ type: 'energy', amount: 2 }], output: { type: 'stone', amount: 2 }, duration: 8, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 300, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 1 },
+  { id: 'mine', name: 'Iron Mine', input: [{ type: 'energy', amount: 2 }], output: { type: 'iron', amount: 2 }, duration: 10, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 400, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 1 },
+  { id: 'power_plant', name: 'Power Plant', input: [{ type: 'wood', amount: 1 }], output: { type: 'energy', amount: 2 }, duration: 10, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 500, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 1 },
+  { id: 'food_processor', name: 'Food Processor', input: [{ type: 'wood', amount: 2 }], output: { type: 'food_ration', amount: 3 }, duration: 5, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 200, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 1 },
+  { id: 'sawmill', name: 'Sawmill', input: [{ type: 'wood', amount: 2 }, { type: 'energy', amount: 1 }], output: { type: 'planks', amount: 2 }, duration: 8, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 400, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 2 },
+  { id: 'foundry', name: 'Foundry', input: [{ type: 'iron', amount: 2 }, { type: 'energy', amount: 2 }], output: { type: 'iron_bars', amount: 1 }, duration: 12, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 800, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 2 },
+  { id: 'concrete_mixer', name: 'Concrete Mixer', input: [{ type: 'stone', amount: 2 }, { type: 'energy', amount: 2 }], output: { type: 'concrete', amount: 1 }, duration: 15, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 800, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 2 },
+  { id: 'electronics_factory', name: 'Electronics Factory', input: [{ type: 'iron_bars', amount: 1 }, { type: 'planks', amount: 1 }, { type: 'energy', amount: 4 }], output: { type: 'electronics', amount: 1 }, duration: 25, isAutomated: false, isProducing: false, isPaused: false, progress: 0, level: 1, upgradeCost: 2000, energyPerTick: 0, inputBuffer: {}, outputBuffer: {}, trucks: 0, condition: 100, tier: 3 },
+  // Laboratory unlocked at colony tier 3 (handled dynamically)
 ];
 
 export const TECHNOLOGIES: Technology[] = [
@@ -283,36 +283,127 @@ export const OVERHEAT_THRESHOLD = 800; // At this level, production slows
 export const CRITICAL_HEAT_THRESHOLD = 950; // At this level, production stops
 export const HEAT_WARNING_THRESHOLD = 600; // Warning level
 
-// ============ POPULATION CONSTANTS ============
+// ============ COLONY SYSTEM CONSTANTS (Replaces Population) ============
+// Colony Reputation - affects market tax rates
+export const INITIAL_COLONY_REPUTATION = 50; // Start neutral
+export const MAX_COLONY_REPUTATION = 100;
+export const MIN_COLONY_REPUTATION = 0;
+export const REPUTATION_TAX_IMPACT = 0.001; // Each point above 50 reduces tax by 0.1%
+export const REPUTATION_WARNING_THRESHOLD = 30;
+export const REPUTATION_CRITICAL_THRESHOLD = 10;
+
+// Colony Contract Tiers by game tier
+export const COLONY_CONTRACT_TIERS = {
+  1: { // Tier 1: No contracts (onboarding)
+    optionalContracts: [],
+    requiredContracts: [],
+    contractScale: 0,
+  },
+  2: { // Tier 2: Optional small contracts
+    optionalContracts: [
+      { resource: 'food_ration' as ResourceType, amount: 5, reward: 50, reputation: 1 },
+    ],
+    requiredContracts: [],
+    contractScale: 0.1,
+  },
+  3: { // Tier 3: Optional larger contracts
+    optionalContracts: [
+      { resource: 'food_ration' as ResourceType, amount: 20, reward: 150, reputation: 2 },
+      { resource: 'lumber' as ResourceType, amount: 10, reward: 100, reputation: 1 },
+    ],
+    requiredContracts: [],
+    contractScale: 0.3,
+  },
+  4: { // Tier 4: Required contracts start
+    optionalContracts: [],
+    requiredContracts: [
+      { resource: 'food_ration' as ResourceType, amount: 30, reward: 200, reputation: -2 },
+      { resource: 'medical_supply' as ResourceType, amount: 10, reward: 300, reputation: -3 },
+      { resource: 'comfort_item' as ResourceType, amount: 15, reward: 250, reputation: -2 },
+    ],
+    contractScale: 0.5,
+  },
+  5: { // Tier 5: Critical contracts
+    optionalContracts: [],
+    requiredContracts: [
+      { resource: 'food_ration' as ResourceType, amount: 50, reward: 300, reputation: -3 },
+      { resource: 'medical_supply' as ResourceType, amount: 20, reward: 500, reputation: -4 },
+      { resource: 'comfort_item' as ResourceType, amount: 30, reward: 400, reputation: -3 },
+      { resource: 'spare_parts' as ResourceType, amount: 10, reward: 600, reputation: -2 },
+    ],
+    contractScale: 1.0,
+  },
+};
+
+// Contract period
+export const COLONY_CONTRACT_PERIOD = 100; // ticks per contract period
+export const CONTRACT_REWARD_MULTIPLIER = 1.5; // Bonus for over-delivering
+
+// ============ MACHINE MAINTENANCE SYSTEM (Replaces Population Efficiency) ============
+export const INITIAL_MACHINE_CONDITION = 100;
+export const MAX_MACHINE_CONDITION = 100;
+export const MIN_MACHINE_CONDITION = 0;
+
+// Condition decay rates by tier (per tick)
+export const CONDITION_DECAY_BY_TIER = {
+  1: 0, // Tier 1: No decay (subsidy)
+  2: 0.01, // Tier 2: 1% per tick (~1% per 100 ticks)
+  3: 0.02, // Tier 3: 2% per tick
+  4: 0.03, // Tier 4: 3% per tick
+  5: 0.05, // Tier 5: 5% per tick
+};
+
+// Maintenance consumption rates
+export const MAINTENANCE_CONSUMPTION = {
+  lubricant: { tier2: 0.1, tier3: 0.2, tier4: 0.3, tier5: 0 },
+  coolant: { tier2: 0, tier3: 0.1, tier4: 0.2, tier5: 0.3 },
+  spare_parts: { tier2: 0, tier3: 0, tier4: 0.05, tier5: 0.1 },
+};
+
+// Condition recovery rates (when maintenance items available)
+export const CONDITION_RECOVERY = {
+  withLubricant: 0.5, // +0.5% per tick with lubricant
+  withCoolant: 0.3, // +0.3% per tick with coolant
+  withSpareParts: 1.0, // +1% per tick with spare parts
+};
+
+// Efficiency impact
+export const CONDITION_EFFICIENCY_BONUS = 0.001; // +0.1% per condition point above 80
+export const CONDITION_EFFICIENCY_PENALTY = 0.005; // -0.5% per condition point below 50
+
+// ============ LOGISTICS FUEL SYSTEM ============
+export const BASE_FUEL_CONSUMPTION = 0; // Tier 1: no fuel cost
+export const FUEL_CONSUMPTION_BY_TRUCK_TYPE = {
+  basic: 0.5, // Low tier trucks: minimal fuel
+  fast: 1.5, // Fast trucks: higher fuel
+  heavy: 2.0, // Heavy trucks: most fuel
+};
+export const FUEL_TYPES = ['fuel_oil', 'energy'] as const;
+export type FuelType = typeof FUEL_TYPES[number];
+
+// ============ POPULATION CONSTANTS (Deprecated - kept for reference) ============
+// These are kept for backward compatibility but are no longer used in the game loop
+/*
 export const INITIAL_POPULATION = 10;
 export const MAX_POPULATION = 1000;
-export const BASE_POPULATION_GROWTH = 1; // Per tick when happy (increased from 0.1)
-export const POPULATION_DECAY = 0.5; // Per tick when unhappy (no food)
-
-// Consumption rates per population per tick
-export const FOOD_CONSUMPTION_RATE = 0.1; // Food needed per person
-export const COMFORT_CONSUMPTION_RATE = 0.01; // Comfort items needed
-export const MEDICAL_CONSUMPTION_RATE = 0.001; // Medical supplies needed
-export const ENERGY_CONSUMPTION_RATE = 0.5; // Energy per person (for housing)
-
-// Happiness
-export const HAPPINESS_DECAY = 2; // Per tick without needs
-export const HAPPINESS_RECOVERY = 1; // Per tick with needs met
+export const BASE_POPULATION_GROWTH = 1;
+export const POPULATION_DECAY = 0.5;
+export const FOOD_CONSUMPTION_RATE = 0.1;
+export const COMFORT_CONSUMPTION_RATE = 0.01;
+export const MEDICAL_CONSUMPTION_RATE = 0.001;
+export const ENERGY_CONSUMPTION_RATE = 0.5;
+export const HAPPINESS_DECAY = 2;
+export const HAPPINESS_RECOVERY = 1;
 export const HAPPINESS_WARNING_THRESHOLD = 50;
 export const HAPPINESS_CRITICAL_THRESHOLD = 30;
-
-// Efficiency bonuses
-export const POPULATION_EFFICIENCY_BONUS = 0.1; // +10% production when needs met
-export const POPULATION_EFFICIENCY_PENALTY = 0.3; // -30% production when needs not met
-export const HAPPINESS_TAX_BONUS = 0.002; // +0.2% tax per happiness point above 70
-
-// Worker requirements
-export const WORKERS_PER_FACTORY = 5; // Workers needed per factory
-export const BASE_WORKER_PRODUCTION = 0.2; // Base production bonus per worker
-
-// Tax/Income
-export const BASE_TAX_RATE = 0.01; // Base 1% of population generates as tax
-export const TAX_INTERVAL = 1000; // Every 1 second (tick)
+export const POPULATION_EFFICIENCY_BONUS = 0.1;
+export const POPULATION_EFFICIENCY_PENALTY = 0.3;
+export const HAPPINESS_TAX_BONUS = 0.002;
+export const WORKERS_PER_FACTORY = 5;
+export const BASE_WORKER_PRODUCTION = 0.2;
+export const BASE_TAX_RATE = 0.01;
+export const TAX_INTERVAL = 1000;
+*/
 
 // ============ BUILDINGS ============
 export const BUILDINGS: Record<BuildingType, {
