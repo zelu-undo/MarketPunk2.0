@@ -19,7 +19,11 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        setState(prev => ({ ...prev, user: { username, money: data.user.money, token: data.token } }));
+        // API returns { username, money, token } (not nested in user)
+        const money = data.money ?? 1000;
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('username', data.username);
+        setState(prev => ({ ...prev, user: { username: data.username, money, token: data.token } }));
         setIsLoggedIn(true);
       } else {
         const err = await res.json();
