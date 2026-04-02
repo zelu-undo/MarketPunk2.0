@@ -75,7 +75,7 @@ app.post('/api/auth/register', async (req, res) => {
   
   if (supabase) {
     try {
-      const { data: existing } = await supabase.from('profiles').select('username').eq('username', username).single();
+      const { data: existing } = await supabase.from('profiles').select('id').eq('username', username).single();
       if (existing) {
         return res.status(400).json({ message: "User already exists" });
       }
@@ -83,8 +83,7 @@ app.post('/api/auth/register', async (req, res) => {
       const hashed = bcrypt.hashSync(password, 10);
       const { data, error } = await supabase.from('profiles').insert({
         username,
-        password: hashed,
-        money: 1000
+        password: hashed
       }).select();
       
       if (error) {
@@ -127,7 +126,7 @@ app.post('/api/auth/login', async (req, res) => {
       }
       
       const token = jwt.sign({ username, id: profile.id }, JWT_SECRET);
-      return res.json({ username, money: profile.money || 1000, token });
+      return res.json({ username, money: 1000, token });
     } catch (e) {
       console.error('Login error:', e.message);
       return res.status(500).json({ message: e.message });
